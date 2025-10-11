@@ -1210,6 +1210,112 @@ body.page-enter #root {
 .threads:hover {
   background: #000;
 }
+/* ===== Footer Base ===== */
+.footer {
+  background: #0d0f12;
+  color: #cfe6ff;
+  padding: 40px 20px 15px;
+  font-family: "Poppins", sans-serif;
+  border-top: 3px solid;
+  border-image: linear-gradient(90deg, #00aaff, #22cc88, #00aaff);
+  border-image-slice: 1;
+  animation: footerBorderSlide 4s linear infinite;
+}
+
+.footer-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 32px;
+  max-width: 1200px;
+  margin: auto;
+  padding-bottom: 25px;
+}
+
+/* ===== Footer Sections ===== */
+.footer-section h3 {
+  color: #eaf6ff;
+  font-size: 16px;
+  margin-bottom: 14px;
+  letter-spacing: 0.6px;
+}
+
+.footer-section p,
+.footer-section li {
+  font-size: 15px;
+  color: #b7c5d3;
+  line-height: 1.6;
+}
+
+.footer-section a {
+  text-decoration: none;
+  color: #b7c5d3;
+  transition: color 0.3s ease;
+}
+
+.footer-section a:hover {
+  color: #63c6ff;
+}
+
+/* ===== Brand & Icons ===== */
+.brand {
+  color: #63c6ff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.icon {
+  color: #63c6ff;
+  margin-right: 8px;
+}
+
+/* ===== Payments & Socials ===== */
+.payments img {
+  width: 50px;
+  margin-right: 8px;
+  filter: grayscale(100%) brightness(85%);
+}
+
+.social-icons {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.social-icons a {
+  background: #111b2a;
+  color: white;
+  font-size: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(99, 198, 255, 0.18);
+}
+
+.social-icons a:hover {
+  transform: translateY(-3px);
+  color: #fff;
+}
+
+.facebook:hover {
+  background: #1877f2;
+}
+.twitter:hover {
+  background: #1da1f2;
+}
+.youtube:hover {
+  background: #ff0000;
+}
+.instagram:hover {
+  background: #e4405f;
+}
+.threads:hover {
+  background: #000;
+}
 
 /* ===== Bottom Bar ===== */
 .footer-bottom {
@@ -1231,6 +1337,7 @@ body.page-enter #root {
   transform: translateY(16px);
   animation: footerItem 0.8s ease forwards;
 }
+
 .footer-animated .footer-section:nth-child(1) {
   animation-delay: 0.2s;
 }
@@ -1275,10 +1382,218 @@ body.page-enter #root {
     transform: translateY(0);
   }
 }
-/* ===== Responsive ===== */
-@media (max-width: 768px) {
+
+/* ===== Responsive Fixes ===== */
+@media (max-width: 900px) {
   .footer-container {
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .footer-container {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .footer-section h3 {
+    margin-bottom: 10px;
+  }
+
+  .social-icons {
+    justify-content: center;
+  }
+
+  .payments img {
+    margin: 0 6px;
+  }
+
+  .footer {
+    padding: 30px 10px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* center the heading */
+  .followclass {
+    text-align: center;
+    margin-right: 0;
+  }
+}
+
+/* ===== WhatsApp Floating Button (bottom-left) ===== */
+.whatsapp-fab {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #25d366; /* WhatsApp green */
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  z-index: 1200;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  /* subtle pulse */
+  animation: waPulse 2.2s ease-in-out infinite;
+}
+
+.whatsapp-fab:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px rgba(37, 211, 102, 0.35);
+  filter: brightness(1.05);
+}
+
+.whatsapp-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+/* Hide behind cookie/chat widgets if needed by raising z-index above them */
+@media (max-width: 480px) {
+  .whatsapp-fab {
+    left: 14px;
+    bottom: 14px;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+/* Pulse animation */
+@keyframes waPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(37, 211, 102, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-fab {
+    animation: none;
+  }
+}
+
+/* ===== Contact Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.25s ease both;
+}
+
+.modal-card {
+  width: min(520px, 92vw);
+  background: var(--bg-elev, #14171c);
+  color: var(--text, #e9eef5);
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow, 0 10px 28px rgba(0, 170, 255, 0.25));
+  padding: 22px 22px 18px;
+  position: relative;
+  animation: modalPop 0.24s ease both;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted, #9aa6b2);
+  font-size: 18px;
+  cursor: pointer;
+}
+.modal-close:hover {
+  color: var(--text, #e9eef5);
+}
+
+.modal-title {
+  margin: 0 0 4px 0;
+  font-size: 1.25rem;
+  color: var(--primary, #00aaff);
+}
+.modal-sub {
+  margin: 0 0 14px 0;
+  color: var(--muted, #9aa6b2);
+}
+
+.modal-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin-top: 8px;
+}
+
+.modal-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.modal-actions .btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-whatsapp {
+  background: #25d366;
+  color: #0b1a10;
+  border-color: transparent;
+}
+.btn-instagram {
+  background: #e4405f;
+  color: #fff;
+  border-color: transparent;
+}
+.btn-call {
+  background: var(--bg, #0d0f12);
+  color: var(--text, #e9eef5);
+}
+
+.modal-help {
+  margin-top: 10px;
+  color: var(--muted, #9aa6b2);
+  font-size: 0.9rem;
+}
+
+/* Animations */
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Small screens: stack buttons */
+@media (max-width: 520px) {
+  .modal-actions {
+    grid-template-columns: 1fr;
   }
 }

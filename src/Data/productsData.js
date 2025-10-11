@@ -125,24 +125,24 @@ const PRODUCTS_DATA = [
   // ----- Alloy Wheels (sample images; replace with your own) -----
   {
     _id: "w1",
-    title: "Alloy Wheel A",
+    title: "Wheel Design A",
     image: "/wheelpic.jpg",
     category: "Alloy Wheels",
-    desc: "Lightweight alloy wheel",
+    desc: "Rims And Tires Both for regular use",
   },
   {
     _id: "w2",
-    title: "A Wheel B",
+    title: "Wheel Design B",
     image: "/wheelpic.jpg",
     category: "Alloy Wheels",
-    desc: "Premium alloy wheel",
+    desc: "Rims And Tires Both for stance",
   },
   {
     _id: "w3",
-    title: " Wheels",
+    title: " Wheel Design C",
     image: "/wheelpic.jpg",
     category: "Alloy Wheels",
-    desc: "Sport alloy wheel",
+    desc: "Rims And Tires Both for performance",
   },
 ];
 

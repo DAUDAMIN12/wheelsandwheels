@@ -31,7 +31,7 @@ export default function Footer() {
 
           <p style={{ marginTop: 8 }}>
             <FaPhoneAlt className="icon" />
-            Mob: 0321-4229594 • Mob: 0300-4583856 WHATSAPP ALSO AVAILABLE
+            Mob: 0321-4229594 - 0339-0045836 WHATSAPP ALSO AVAILABLE
           </p>
 
           <p>
@@ -41,7 +41,7 @@ export default function Footer() {
 
           <p>
             <FaClock className="icon" />
-            12:00 PM – 9:00 PM (Mon–Sun)
+            12:00 PM – 9:00 PM (Mon–Sat), Closed on Sunday
           </p>
         </div>
 

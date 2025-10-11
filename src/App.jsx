@@ -22,6 +22,7 @@ import ServiceDetail from "./components/ServiceDetail.jsx";
 import ProductsLanding from "./components/ProductsLanding.jsx";
 import ErrorPage from "./components/ErrorPage.jsx";
 import BrandShowcase from "./components/BrandShowcase.jsx";
+import FloatingWhatsApp from "./components/FloatingWhatsApp.jsx";
 
 // Utility: smooth-scroll to an id
 const scrollToId = (id) => {
@@ -133,6 +134,7 @@ function HomePage() {
       <BrandShowcase />
       <Services />
       <Contact />
+      <FloatingWhatsApp />
     </main>
   );
 }

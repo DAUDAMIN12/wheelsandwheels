@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import Ripple from "./Ripple.jsx";
 
-const API_BASE =
-  (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ||
-  "http://localhost:3000/api";
+// No API calls—pure mailto flow
+const TO_EMAIL = "wheelsandwheelsinfo@gmail.com";
 
 export default function Contact() {
   const [status, setStatus] = useState({ help: "", ok: false, sending: false });
@@ -11,7 +10,10 @@ export default function Contact() {
   const emailRef = useRef(null);
   const msgRef = useRef(null);
 
-  // clean up in-flight request if the component unmounts
+  // simple email check
+  const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
+
+  // optional: abort pattern kept to mirror your original structure
   useEffect(() => {
     const ac = new AbortController();
     return () => ac.abort();
@@ -24,9 +26,6 @@ export default function Contact() {
     const email = emailRef.current?.value.trim();
     const message = msgRef.current?.value.trim();
 
-    // simple email check
-    const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
-
     if (!name || !isEmail(email) || !message) {
       setStatus({
         help: "Please complete all fields with a valid email.",
@@ -38,39 +37,42 @@ export default function Contact() {
 
     setStatus({ help: "", ok: false, sending: true });
 
+    // Build a mailto link with subject + body
+    const subject = `Website enquiry from ${name}`;
+    const bodyLines = [
+      `Name: ${name}`,
+      `Email: ${email}`,
+      "",
+      "Message:",
+      message,
+      "",
+      `Sent from: ${typeof window !== "undefined" ? window.location.href : ""}`,
+      `Timestamp: ${new Date().toLocaleString()}`,
+    ];
+    const body = bodyLines.join("\n");
+
+    const mailto = `mailto:${encodeURIComponent(
+      TO_EMAIL
+    )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    // Open the user's mail client
+    // Using setTimeout to allow button UI to flip to "Sent!" briefly
     try {
-      const res = await fetch(`${API_BASE}/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          message,
-          createdAt: new Date().toISOString(),
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.message || `HTTP ${res.status}`);
-      }
-
+      window.location.href = mailto;
       setStatus({
-        help: "Thanks! We’ll get back to you shortly.",
+        help: "Opening your email app…",
         ok: true,
         sending: false,
       });
-
-      // clear fields
-      if (nameRef.current) nameRef.current.value = "";
-      if (emailRef.current) emailRef.current.value = "";
-      if (msgRef.current) msgRef.current.value = "";
+      // Optional: clear fields after a moment
+      setTimeout(() => {
+        if (nameRef.current) nameRef.current.value = "";
+        if (emailRef.current) emailRef.current.value = "";
+        if (msgRef.current) msgRef.current.value = "";
+      }, 400);
     } catch (err) {
       setStatus({
-        help:
-          err?.message === "Failed to fetch"
-            ? "Network error. Please check your connection."
-            : `Could not send message. ${err?.message || ""}`,
+        help: "Could not open your email app. Please email us directly.",
         ok: false,
         sending: false,
       });
@@ -132,8 +134,14 @@ export default function Contact() {
           className="btn btn-primary"
           disabled={status.sending}
         >
-          {status.sending ? "Sending…" : status.ok ? "Sent!" : "Send Message"}
+          {status.sending
+            ? "Preparing…"
+            : status.ok
+            ? "Opening Mail…"
+            : "Send Message"}
         </Ripple>
+
+        {/* Fallback direct email link */}
       </form>
     </section>
   );

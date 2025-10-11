@@ -2,45 +2,42 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoadingPage from "./LoadingPage";
 import PRODUCTS_DATA from "../Data/productsData";
+import ContactModal from "./ContactModal";
 
 const PAGE_SIZE = 24;
 
 export default function ProductsLanding() {
   const [query, setQuery] = useState("");
   const [serverQuery, setServerQuery] = useState("");
-  const [loading, setLoading] = useState(false); // local data → no real loading
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [items, setItems] = useState([]);
+  const [selected, setSelected] = useState(null); // <-- modal state
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Read category from URL (?category=Tyres)
   const [category, setCategory] = useState(() => {
     const params = new URLSearchParams(location.search);
     return params.get("category") || "";
   });
 
-  // Update when URL changes
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const cat = params.get("category") || "";
     setCategory(cat);
-    setPage(1); // reset paging when category changes
+    setPage(1);
   }, [location.search]);
 
-  // Debounce search input -> serverQuery
   useEffect(() => {
     const t = setTimeout(() => setServerQuery(query.trim()), 450);
     return () => clearTimeout(t);
   }, [query]);
 
-  // Client-side filter + paginate
   useEffect(() => {
     setErr("");
-
     const term = serverQuery.toLowerCase();
     const filtered = PRODUCTS_DATA.filter((p) => {
       const inCategory = !category || p.category === category;
@@ -80,7 +77,6 @@ export default function ProductsLanding() {
         </button>
       </div>
 
-      {/* Top strip / breadcrumb-ish */}
       <section className="shop-hero reveal inview enter-down">
         <h1>Find Your Perfect Fit</h1>
         <p className="muted">
@@ -88,7 +84,6 @@ export default function ProductsLanding() {
         </p>
       </section>
 
-      {/* Toolbar */}
       <section className="shop-toolbar reveal inview enter-down">
         <form onSubmit={onSubmit} className="shop-search">
           <input
@@ -106,7 +101,6 @@ export default function ProductsLanding() {
         </form>
       </section>
 
-      {/* Grid */}
       <section className="shop-results">
         {err && (
           <div className="shop-error reveal inview enter-down">{err}</div>
@@ -142,10 +136,10 @@ export default function ProductsLanding() {
                     <h3>{p.title}</h3>
                     {p.desc && <p className="muted">{p.desc}</p>}
                     <div className="shop-card__meta">
-                      <span className="price">Contact for price</span>
+                      <span className="price">Contact for Designs</span>
                       <button
                         className="btn btn-ghost"
-                        onClick={() => alert(`Selected: ${p.title}`)}
+                        onClick={() => setSelected(p)} // <-- open modal
                       >
                         View
                       </button>
@@ -155,7 +149,6 @@ export default function ProductsLanding() {
               ))}
             </div>
 
-            {/* Pagination */}
             <div className="shop-pager reveal inview enter-up">
               <button
                 className="btn btn-ghost"
@@ -176,6 +169,13 @@ export default function ProductsLanding() {
           </>
         )}
       </section>
+
+      {/* Modal lives at the end so it overlays everything */}
+      <ContactModal
+        isOpen={!!selected}
+        onClose={() => setSelected(null)}
+        productTitle={selected?.title || ""}
+      />
     </main>
   );
 }
