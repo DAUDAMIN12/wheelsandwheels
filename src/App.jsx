@@ -11,7 +11,7 @@ import Nav from "./components/Nav.jsx";
 import ScrollProgress from "./components/ScrollProgress.jsx";
 import Hero from "./components/Hero.jsx";
 import Products from "./components/Products.jsx";
-import Services from "./Components/Services.jsx";
+import Services from "./components/Services.jsx";
 import Contact from "./Components/Contact.jsx";
 import Footer from "./components/Footer.jsx";
 import ToTop from "./Components/ToTop.jsx";
