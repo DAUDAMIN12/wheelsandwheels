@@ -34,10 +34,7 @@ export default function BrandShowcase() {
             ensuring quality, durability, and performance for every vehicle
             type.
           </p>
-
-          <a className="brand-cta" href="/products">
-            SHOP NOW ›
-          </a>
+          x{" "}
         </div>
 
         {/* Right logo grid */}
