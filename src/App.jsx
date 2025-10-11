@@ -12,9 +12,9 @@ import ScrollProgress from "./components/ScrollProgress.jsx";
 import Hero from "./components/Hero.jsx";
 import Products from "./components/Products.jsx";
 import Services from "./components/Services.jsx";
-import Contact from "./Components/Contact.jsx";
+import Contact from "./components/Contact.jsx";
 import Footer from "./components/Footer.jsx";
-import ToTop from "./Components/ToTop.jsx";
+import ToTop from "./components/ToTop.jsx";
 import useScrollFX from "./hooks/useScrollFX.js";
 import ServiceDetail from "./components/ServiceDetail.jsx";
 
