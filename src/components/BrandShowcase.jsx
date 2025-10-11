@@ -34,7 +34,6 @@ export default function BrandShowcase() {
             ensuring quality, durability, and performance for every vehicle
             type.
           </p>
-          x{" "}
         </div>
 
         {/* Right logo grid */}
