@@ -9,7 +9,7 @@ const PAGE_SIZE = 24;
 export default function ProductsLanding() {
   const [query, setQuery] = useState("");
   const [serverQuery, setServerQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [err, setErr] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);

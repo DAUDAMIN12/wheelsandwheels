@@ -1,17 +1,43 @@
-# React + Vite
+# Wheels & Wheels
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A professional tyre and rims storefront for Wheels & Wheels Lahore. The frontend is React + Vite; the API is Express + MongoDB.
 
-Currently, two official plugins are available:
+## Local setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## Run the API
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The included local `.env` connects to the installed MongoDB service. Start the API in a second terminal:
 
-## Expanding the ESLint configuration
+```bash
+npm run server
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-"# wheelsandwheels" 
+API routes: `GET /api/health`, `GET /api/products`, `GET /api/products/:id`, and `POST /api/orders`.
+
+Open the storefront at `http://localhost:5173` and the admin dashboard at `http://localhost:5173/admin`.
+
+Local admin credentials:
+
+- Email: `admin@wheelsandwheels.pk`
+- Password: `ChangeMe123!`
+
+Change `ADMIN_PASSWORD` and `JWT_SECRET` before deploying. The initial admin is created only when the admin collection is empty; changing the environment value afterward does not change an existing database password.
+
+## Implemented backend
+
+- MongoDB product, order and admin collections
+- Automatic first-run inventory seeding
+- Signed, expiring admin authentication
+- Product listing and protected product CRUD
+- Customer checkout with server-side prices and stock checks
+- Server-controlled pricing and guarded stock reduction
+- Cash-on-delivery and bank-transfer orders
+- Protected order listing and status management
+- Admin dashboard summary and revenue reporting
+
+For production, use MongoDB Atlas, HTTPS, a long random `JWT_SECRET`, a strong admin password, and a hosted image service such as Cloudinary or S3.

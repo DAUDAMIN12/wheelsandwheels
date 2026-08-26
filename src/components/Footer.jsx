@@ -24,7 +24,8 @@ export default function Footer() {
 
           <p>
             <FaMapMarkerAlt className="icon" />
-            Old Tyre Market, Near Rawali Cinema, Aslam Khan Road , Lahore,
+            Old Tyre Market, near Rawali Cinema and Railway Station, Aslam Khan
+            Road, Lahore,
             Pakistan.
           </p>
           <p style={{ marginTop: 4, marginLeft: 26 }}></p>

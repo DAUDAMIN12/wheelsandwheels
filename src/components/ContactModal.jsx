@@ -1,9 +1,12 @@
 import React, { useEffect, useRef } from "react";
 import { FaWhatsapp, FaInstagram, FaPhoneAlt, FaTimes } from "react-icons/fa";
 
-const PK_WHATSAPP = "+923390045836"; // 0300-4583856 -> international format
+const PK_WHATSAPP = "923390045836";
 const INSTAGRAM_URL = "https://instagram.com/wheelsandwheels_";
-const CALL_NUMBER = "+923390045836"; //
+const CALL_NUMBERS = [
+  { href: "+923214229594", label: "0321 4229594" },
+  { href: "+923390045836", label: "0339 0045836" },
+];
 
 export default function ContactModal({ isOpen, onClose, productTitle }) {
   const firstBtnRef = useRef(null);
@@ -66,9 +69,15 @@ export default function ContactModal({ isOpen, onClose, productTitle }) {
             <FaInstagram /> Instagram Page
           </a>
 
-          <a className="btn btn-call" href={`tel:${CALL_NUMBER}`}>
-            <FaPhoneAlt /> Call Now
-          </a>
+          {CALL_NUMBERS.map((number) => (
+            <a
+              key={number.href}
+              className="btn btn-call"
+              href={`tel:${number.href}`}
+            >
+              <FaPhoneAlt /> Call {number.label}
+            </a>
+          ))}
         </div>
 
         <p className="modal-help">

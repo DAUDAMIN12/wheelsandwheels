@@ -1,0 +1,12 @@
+{
+  "name": "Wheels & Wheels",
+  "short_name": "Wheels",
+  "description": "Premium tyres, rims and professional fitment in Pakistan.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f3ee",
+  "theme_color": "#0b0d0f",
+  "icons": [
+    { "src": "/icon.jpg", "sizes": "any", "type": "image/jpeg", "purpose": "any" }
+  ]
+}

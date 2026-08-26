@@ -2,9 +2,8 @@ import React from "react";
 import { FaWhatsapp } from "react-icons/fa";
 
 export default function FloatingWhatsApp() {
-  // Convert local number 0300-4583856 -> international for WhatsApp: 923004583856 (Pakistan)
   const whatsappLink =
-    "https://wa.me/923390045836?text=Hi%20Wheels%20and%20Wheels!%20I%27d%20like%20to%20chat.";
+    "https://wa.me/923390045836?text=Hi%20Wheels%20%26%20Wheels%2C%20I%20need%20help%20with%20tyres%2C%20rims%20or%20current%20rates.";
 
   return (
     <a
@@ -12,10 +11,11 @@ export default function FloatingWhatsApp() {
       target="_blank"
       rel="noopener noreferrer"
       className="whatsapp-fab"
-      aria-label="Chat on WhatsApp"
-      title="Chat on WhatsApp"
+      aria-label="Chat with Wheels and Wheels on official WhatsApp 0339 0045836"
+      title="Official WhatsApp: 0339 0045836"
     >
       <FaWhatsapp className="whatsapp-icon" />
+      <span>WhatsApp</span>
     </a>
   );
 }

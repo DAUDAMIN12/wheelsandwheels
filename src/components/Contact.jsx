@@ -52,7 +52,7 @@ export default function Contact() {
     const body = bodyLines.join("\n");
 
     const mailto = `mailto:${encodeURIComponent(
-      TO_EMAIL
+      TO_EMAIL,
     )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     // Open the user's mail client
@@ -70,7 +70,7 @@ export default function Contact() {
         if (emailRef.current) emailRef.current.value = "";
         if (msgRef.current) msgRef.current.value = "";
       }, 400);
-    } catch (err) {
+    } catch {
       setStatus({
         help: "Could not open your email app. Please email us directly.",
         ok: false,
@@ -122,8 +122,8 @@ export default function Contact() {
             color: status.ok
               ? "var(--muted)"
               : status.help
-              ? "#ff7b7b"
-              : undefined,
+                ? "#ff7b7b"
+                : undefined,
           }}
         >
           {status.help}
@@ -137,8 +137,8 @@ export default function Contact() {
           {status.sending
             ? "Preparing…"
             : status.ok
-            ? "Opening Mail…"
-            : "Send Message"}
+              ? "Opening Mail…"
+              : "Send Message"}
         </Ripple>
 
         {/* Fallback direct email link */}
