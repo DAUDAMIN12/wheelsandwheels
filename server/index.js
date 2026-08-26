@@ -20,7 +20,7 @@ import {
 } from "./auth.js";
 import { seedProducts } from "./seedData.js";
 
-const app = express();
+export const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
@@ -537,7 +537,7 @@ app.post("/api/orders", async (_req, res) => {
   */
 });
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
   const projectRoot = path.resolve(
     fileURLToPath(new URL("..", import.meta.url)),
   );
@@ -561,29 +561,48 @@ app.use((error, _req, res, _next) => {
     .json({ message: error.message || "Something went wrong" });
 });
 
-async function bootstrap() {
+let databasePromise;
+
+export function connectDatabase() {
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (databasePromise) return databasePromise;
+
   const uri = process.env.MONGODB_URI;
   if (!uri)
     throw new Error("MONGODB_URI is required. Copy .env.example to .env");
-  await mongoose.connect(uri, {
-    maxPoolSize: Number(process.env.MONGO_POOL_SIZE || 50),
-    minPoolSize: 5,
-    serverSelectionTimeoutMS: 5000,
-  });
-  if ((await Product.countDocuments()) === 0)
-    await Product.insertMany(seedProducts);
-  if ((await Admin.countDocuments()) === 0) {
-    const password = process.env.ADMIN_PASSWORD;
-    if (!password)
-      throw new Error("ADMIN_PASSWORD is required for the first admin");
-    const { salt, hash } = hashPassword(password);
-    await Admin.create({
-      name: process.env.ADMIN_NAME || "Store Admin",
-      email: process.env.ADMIN_EMAIL || "admin@wheelsandwheels.pk",
-      salt,
-      passwordHash: hash,
+
+  databasePromise = mongoose
+    .connect(uri, {
+      maxPoolSize: Number(process.env.MONGO_POOL_SIZE || 10),
+      minPoolSize: 0,
+      serverSelectionTimeoutMS: 5000,
+    })
+    .then(async () => {
+      if ((await Product.countDocuments()) === 0)
+        await Product.insertMany(seedProducts);
+      if ((await Admin.countDocuments()) === 0) {
+        const password = process.env.ADMIN_PASSWORD;
+        if (!password)
+          throw new Error("ADMIN_PASSWORD is required for the first admin");
+        const { salt, hash } = hashPassword(password);
+        await Admin.create({
+          name: process.env.ADMIN_NAME || "Store Admin",
+          email: process.env.ADMIN_EMAIL || "admin@wheelsandwheels.pk",
+          salt,
+          passwordHash: hash,
+        });
+      }
+    })
+    .catch((error) => {
+      databasePromise = undefined;
+      throw error;
     });
-  }
+
+  return databasePromise;
+}
+
+async function bootstrap() {
+  await connectDatabase();
   const port = process.env.PORT || 5000;
   const server = app.listen(port, () =>
     console.log(`Wheels & Wheels API: http://localhost:${port}`),
@@ -599,7 +618,13 @@ async function bootstrap() {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
-bootstrap().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+
+const isDirectRun = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false;
+
+if (isDirectRun)
+  bootstrap().catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
