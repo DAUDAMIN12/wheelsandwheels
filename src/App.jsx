@@ -125,10 +125,15 @@ function ProductCard({ product, add }) {
   );
 }
 
-function SizeCatalogue({ type }) {
+function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
   const [selected, setSelected] = useState(null);
   const isRim = type === "rims";
-  const sizes = Array.from({ length: 13 }, (_, index) => index + 12);
+  const sizes = diameter
+    ? [Number(diameter)]
+    : Array.from({ length: 13 }, (_, index) => index + 12);
+  const requestedFitment = isRim
+    ? diameter && `${diameter}-inch rims`
+    : diameter && `${width || "Any width"}/${profile || "Any profile"} R${diameter}`;
   useEffect(() => {
     if (!selected) return undefined;
     const close = (event) => event.key === "Escape" && setSelected(null);
@@ -138,8 +143,8 @@ function SizeCatalogue({ type }) {
   return (
     <section className="size-catalogue" aria-labelledby={`${type}-size-title`}>
       <div className="size-catalogue-head">
-        <div><div className="eyebrow">12–24 INCH RANGE</div><h2 id={`${type}-size-title`}>{isRim ? "Rims in every diameter." : "Tyres by rim size."}</h2></div>
-        <p>{isRim ? "Choose a diameter. PCD, offset, width and hub fitment are confirmed for your vehicle before supply." : "Choose your rim diameter to see commonly sourced profiles. Width, load rating and final fitment are confirmed for your vehicle."}</p>
+        <div><div className="eyebrow">{requestedFitment ? "YOUR SELECTED FITMENT" : "12–24 INCH RANGE"}</div><h2 id={`${type}-size-title`}>{requestedFitment || (isRim ? "Rims in every diameter." : "Tyres by rim size.")}</h2></div>
+        <p>{requestedFitment ? "This diameter matches your selection. Ask our team for the current rate and final vehicle fitment confirmation." : isRim ? "Choose a diameter. PCD, offset, width and hub fitment are confirmed for your vehicle before supply." : "Choose your rim diameter to see commonly sourced profiles. Width, load rating and final fitment are confirmed for your vehicle."}</p>
       </div>
       <div className="diameter-grid">
         {sizes.map((diameter) => (
@@ -542,6 +547,9 @@ function Shop({ add, products, loading }) {
   const [profile, setProfile] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("featured");
+  const profileOptions = rim
+    ? TYRE_PROFILE_GUIDE[Number(rim)] || []
+    : [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
   const items = useMemo(
     () =>
       products
@@ -676,17 +684,22 @@ function Shop({ add, products, loading }) {
                 }}
               >
                 <option value="">Any profile</option>
-                {[35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85].map(
-                  (value) => (
+                {profileOptions.map((value) => (
                     <option key={value}>{value}</option>
-                  ),
-                )}
+                  ))}
               </select>
             )}
             <select
               value={rim}
               onChange={(event) => {
-                setRim(event.target.value);
+                const nextRim = event.target.value;
+                setRim(nextRim);
+                if (
+                  nextRim &&
+                  profile &&
+                  !TYRE_PROFILE_GUIDE[Number(nextRim)]?.includes(Number(profile))
+                )
+                  setProfile("");
                 setSize("");
               }}
             >
@@ -712,7 +725,34 @@ function Shop({ add, products, loading }) {
               </button>
             )}
           </div>
-          <SizeCatalogue type={category === "Rims" ? "rims" : "tyres"} />
+          <SizeCatalogue
+            type={category === "Rims" ? "rims" : "tyres"}
+            diameter={rim}
+            width={width}
+            profile={profile}
+          />
+          {(rim || width || profile) && (
+            <div className="fitment-result" role="status">
+              <span>
+                Selected requirement{" "}
+                <b>
+                  {category === "Rims"
+                    ? `${rim || "12–24"} inch rims`
+                    : `${width || "Any width"}/${profile || "Any profile"} R${rim || "12–24"}`}
+                </b>
+              </span>
+              <button
+                onClick={() => {
+                  setRim("");
+                  setWidth("");
+                  setProfile("");
+                  setSize("");
+                }}
+              >
+                View full range
+              </button>
+            </div>
+          )}
           {size && (
             <div className="fitment-result">
               <span>
