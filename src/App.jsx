@@ -52,6 +52,21 @@ const TYRE_PROFILE_GUIDE = {
   21: [30, 35, 40, 45, 50], 22: [25, 30, 35, 40, 45, 50, 55],
   23: [25, 30, 35, 40, 45], 24: [25, 30, 35, 40, 45],
 };
+const SOURCING_BRANDS = [
+  { brand: "Michelin", group: "premium", origin: "Other", badge: "Premium · France" },
+  { brand: "Pirelli", group: "premium", origin: "Other", badge: "Premium · Italy" },
+  { brand: "Continental", group: "premium", origin: "Other", badge: "Premium · Germany" },
+  { brand: "Dunlop", group: "japanese", origin: "Japan", badge: "Japanese" },
+  { brand: "Yokohama", group: "japanese", origin: "Japan", badge: "Japanese" },
+  { brand: "Bridgestone", group: "japanese", origin: "Japan", badge: "Japanese" },
+  { brand: "Toyo", group: "japanese", origin: "Japan", badge: "Japanese" },
+  { brand: "Falken", group: "japanese", origin: "Japan", badge: "Japanese" },
+  { brand: "APLUS", group: "chinese", origin: "China", badge: "Chinese value" },
+  { brand: "Sailun", group: "chinese", origin: "China", badge: "Chinese value" },
+  { brand: "Linglong", group: "chinese", origin: "China", badge: "Chinese value" },
+  { brand: "Triangle", group: "chinese", origin: "China", badge: "Chinese value" },
+  { brand: "RoadX", group: "chinese", origin: "China", badge: "Chinese value" },
+];
 
 function RouteEffects() {
   const { pathname, hash } = useLocation();
@@ -78,10 +93,13 @@ function RouteEffects() {
 }
 
 function ProductCard({ product, add }) {
+  const productDestination = product.onRequest
+    ? `/quote?tyreSize=${encodeURIComponent(product.size)}&message=${encodeURIComponent(`Please quote ${product.brand} options for ${product.size}.`)}`
+    : `/product/${product._id}`;
   return (
     <article className="product-card">
       <div className="product-image">
-        <Link to={`/product/${product._id}`}>
+        <Link to={productDestination}>
           <img src={product.image} alt={product.title} />
         </Link>
         {product.badge && <span className="pill">{product.badge}</span>}
@@ -98,14 +116,17 @@ function ProductCard({ product, add }) {
           {product.brand} · {product.category}
         </div>
         <h3>
-          <Link to={`/product/${product._id}`}>{product.title}</Link>
+          <Link to={productDestination}>{product.title}</Link>
         </h3>
         <div className="spec-row">
           <span>{product.size}</span>
           <span>{product.vehicle}</span>
         </div>
         <div className="rating">
-          <FaStar /> {product.rating} <span>· {product.stock} in stock</span>
+          <FaStar /> {product.rating}{" "}
+          <span>
+            · {product.onRequest ? "Availability confirmed on request" : `${product.stock} in stock`}
+          </span>
         </div>
         <div className="price-row">
           <span className="rate-label"><small>CURRENT PRICE</small><strong>Ask for rate</strong></span>
@@ -118,7 +139,7 @@ function ProductCard({ product, add }) {
           Ask current rate <FaChevronRight />
         </Link>
         <button className="add-button" onClick={() => add(product)}>
-          Save selection <FaChevronRight />
+          {product.onRequest ? "Ask about this option" : "Save selection"}{" "}<FaChevronRight />
         </button>
       </div>
     </article>
@@ -547,10 +568,8 @@ function Shop({ add, products, loading }) {
   const [profile, setProfile] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("featured");
-  const profileOptions = rim
-    ? TYRE_PROFILE_GUIDE[Number(rim)] || []
-    : [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
-  const items = useMemo(
+  const profileOptions = [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
+  const inventoryItems = useMemo(
     () =>
       products
         .filter(
@@ -585,6 +604,53 @@ function Shop({ add, products, loading }) {
         ),
     [category, query, sort, products, size, rim, width, profile],
   );
+  const sourcedItems = useMemo(() => {
+    if (category === "Rims" || !width || !profile || !rim) return [];
+    const requestedSize = `${width}/${profile} R${rim}`;
+    const brands = SOURCING_BRANDS.filter(({ group }) => {
+      if (category === "Premium Brands") return group === "premium";
+      if (category === "Japanese Brands") return group === "japanese";
+      if (category === "Chinese Brands") return group === "chinese";
+      if (category === "Premium & Japanese")
+        return group === "premium" || group === "japanese";
+      return true;
+    });
+    return brands
+      .filter(({ brand }) =>
+        `${brand} ${requestedSize}`.toLowerCase().includes(query.toLowerCase()),
+      )
+      .map(({ brand, origin, badge }) => ({
+        _id: `request-${brand.toLowerCase()}-${width}-${profile}-${rim}`,
+        title: `${brand} ${requestedSize}`,
+        brand,
+        category: "Tyres",
+        origin,
+        image: "/tyre.jpg",
+        price: 0,
+        size: requestedSize,
+        width: Number(width),
+        profile: Number(profile),
+        rimDiameter: Number(rim),
+        vehicle: "Exact fitment verified",
+        rating: 4.8,
+        stock: 0,
+        badge: `${badge} · On request`,
+        description: `${brand} options for ${requestedSize}, subject to current market availability and vehicle fitment confirmation.`,
+        onRequest: true,
+      }));
+  }, [category, query, rim, width, profile]);
+  const items = useMemo(() => {
+    if (!sourcedItems.length) return inventoryItems;
+    const inventoryBrands = new Set(inventoryItems.map((item) => item.brand));
+    return [
+      ...inventoryItems,
+      ...sourcedItems.filter((item) => !inventoryBrands.has(item.brand)),
+    ].sort((a, b) =>
+      sort === "brand"
+        ? a.brand.localeCompare(b.brand)
+        : brandPriority(a.brand) - brandPriority(b.brand),
+    );
+  }, [inventoryItems, sourcedItems, sort]);
   return (
     <main className="shop-page">
       <div className="shop-banner">
@@ -694,12 +760,6 @@ function Shop({ add, products, loading }) {
               onChange={(event) => {
                 const nextRim = event.target.value;
                 setRim(nextRim);
-                if (
-                  nextRim &&
-                  profile &&
-                  !TYRE_PROFILE_GUIDE[Number(nextRim)]?.includes(Number(profile))
-                )
-                  setProfile("");
                 setSize("");
               }}
             >
