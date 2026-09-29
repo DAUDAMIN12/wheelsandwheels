@@ -10,6 +10,14 @@ const check = (condition, message) => {
 };
 
 const request = (path, options) => fetch(`${baseUrl}${path}`, options);
+const readJson = async (response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { nonJsonResponse: true };
+  }
+};
 
 const pageChecks = [
   ["/", 200, false],
@@ -31,14 +39,14 @@ for (const [path, expectedStatus, shouldNoIndex] of pageChecks) {
 }
 
 const health = await request("/api/health");
-const healthBody = await health.json();
+const healthBody = await readJson(health);
 check(health.status === 200, `Health endpoint returned ${health.status}`);
 check(healthBody.database === "connected", "Health endpoint reports a disconnected database");
 
 const catalogue = await request("/api/products", {
   headers: { Origin: baseUrl },
 });
-const products = await catalogue.json();
+const products = await readJson(catalogue);
 check(catalogue.status === 200, `Catalogue returned ${catalogue.status}`);
 check(Array.isArray(products) && products.length > 0, "Catalogue returned no products");
 check(catalogue.headers.get("access-control-allow-origin") === baseUrl, "Same-origin CORS response is incorrect");
@@ -85,14 +93,14 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
       password: process.env.ADMIN_PASSWORD,
     }),
   });
-  const loginBody = await login.json();
+  const loginBody = await readJson(login);
   check(login.status === 200, `Configured admin login returned ${login.status}`);
   check(Boolean(loginBody.token), "Configured admin login returned no token");
   if (loginBody.token) {
     const summary = await request("/api/admin/summary", {
       headers: { Authorization: `Bearer ${loginBody.token}` },
     });
-    const summaryBody = await summary.json();
+    const summaryBody = await readJson(summary);
     check(summary.status === 200, `Authorized admin summary returned ${summary.status}`);
     check(typeof summaryBody.inquiries === "number", "Admin summary is missing RFQ totals");
     check(Array.isArray(summaryBody.inquiryStatuses), "Admin summary is missing the RFQ funnel");
@@ -100,6 +108,8 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
 }
 
 if (failures.length) {
+  if (healthBody?.code)
+    console.error(`API diagnostic: ${healthBody.code}`);
   failures.forEach((failure) => console.error(`FAIL: ${failure}`));
   console.error(`${failures.length} of ${checks} smoke checks failed.`);
   process.exitCode = 1;
