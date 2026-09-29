@@ -1,0 +1,332 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  FaCar,
+  FaChevronRight,
+  FaPhoneAlt,
+  FaSearch,
+  FaTags,
+  FaWhatsapp,
+} from "react-icons/fa";
+import * as seoContent from "../../Data/seoContent.js";
+import SeoHead from "./SeoHead.jsx";
+
+const WHATSAPP = "923390045836";
+const WIDTHS = [155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 305, 315, 325, 335, 345, 355];
+const PROFILES = [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
+const RIMS = Array.from({ length: 13 }, (_, index) => index + 12);
+
+function collection(...candidates) {
+  const value = candidates.find((candidate) => candidate && typeof candidate === "object");
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  return Object.entries(value).map(([slug, item]) => ({ slug, ...item }));
+}
+
+function slugify(value = "") {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function linkPath(item, type) {
+  if (item.path || item.href) return item.path || item.href;
+  const slug = item.slug || slugify(item.name || item.title || item.size);
+  if (type === "brand") return `/brands/${slug}`;
+  if (type === "vehicle") return `/vehicles/${slug}`;
+  return `/tyre-sizes/${slug}`;
+}
+
+function summaryText(item, type) {
+  if (item.summary || item.description) return item.summary || item.description;
+  if (type === "brand") {
+    const knownFor = Array.isArray(item.knownFor) ? item.knownFor.join(", ") : item.knownFor;
+    return knownFor || `${item.origin || "Imported"} tyre options, checked for current availability.`;
+  }
+  if (type === "vehicle") {
+    const sizes = (item.commonSizes || []).slice(0, 3).map((entry) => entry.size || entry).join(", ");
+    return sizes ? `Commonly researched sizes: ${sizes}. Verify by year and variant.` : "Fitment must be verified by model, year and variant.";
+  }
+  const applications = Array.isArray(item.commonApplications)
+    ? item.commonApplications.slice(0, 2).join(", ")
+    : item.commonApplications;
+  return applications || "Compare current brand options and confirm fitment for your vehicle.";
+}
+
+function DiscoveryCard({ item, type }) {
+  const label =
+    item.name || item.heroTitle || item.title || item.size || `${item.make || ""} ${item.model || ""}`.trim();
+  return (
+    <article className="discovery-card">
+      <p className="eyebrow">
+        {type === "brand"
+          ? [item.tier, item.origin].filter(Boolean).join(" · ") || "TYRE BRAND"
+          : type === "vehicle"
+            ? "VEHICLE FITMENT"
+            : "TYRE SIZE"}
+      </p>
+      <h3><Link to={linkPath(item, type)}>{label}</Link></h3>
+      <p>{summaryText(item, type)}</p>
+      <Link className="guide-read-link" to={linkPath(item, type)}>
+        Explore {type === "vehicle" ? "fitments" : "options"} <FaChevronRight aria-hidden="true" />
+      </Link>
+    </article>
+  );
+}
+
+function DiscoverySection({ id, eyebrow, title, intro, items, type, allHref, allLabel }) {
+  if (!items.length) return null;
+  return (
+    <section className="discovery-section section" aria-labelledby={id}>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{eyebrow}</p>
+          <h2 id={id}>{title}</h2>
+          {intro && <p>{intro}</p>}
+        </div>
+        {allHref && (
+          <Link to={allHref}>{allLabel} <FaChevronRight aria-hidden="true" /></Link>
+        )}
+      </div>
+      <div className="discovery-grid">
+        {items.map((item) => (
+          <DiscoveryCard key={item.slug || item.name || item.title || item.size} item={item} type={type} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function DiscoveryHub({ focus = "all" }) {
+  const navigate = useNavigate();
+  const [fitment, setFitment] = useState({ width: "195", profile: "65", rim: "15" });
+  const brands = collection(seoContent.SEO_BRANDS, seoContent.default?.SEO_BRANDS);
+  const vehicles = collection(seoContent.SEO_VEHICLES, seoContent.default?.SEO_VEHICLES);
+  const sizes = collection(seoContent.SEO_SIZES, seoContent.default?.SEO_SIZES);
+  const pageCopy = {
+    all: {
+      title: "Find Tyres by Size, Brand or Vehicle",
+      h1: "Find the right tyres for your car.",
+      canonical: "/tyres",
+      description:
+        "Find tyre options by size, brand or vehicle. Wheels & Wheels Lahore checks current availability, market rates and safe fitment before supply.",
+    },
+    brand: {
+      title: "Tyre Brands in Lahore",
+      h1: "Compare tyre brands with the right context.",
+      canonical: "/brands",
+      description:
+        "Explore premium, Japanese and Chinese tyre brands in Lahore, then request current options for your exact size and vehicle.",
+    },
+    vehicle: {
+      title: "Find Tyres by Vehicle",
+      h1: "Start with your vehicle, then verify the fitment.",
+      canonical: "/vehicles",
+      description:
+        "Browse reference tyre sizes by vehicle and ask Wheels & Wheels Lahore to verify the exact model year, variant, ratings and wheel fitment.",
+    },
+    size: {
+      title: "Tyre Sizes in Lahore",
+      h1: "Browse tyres by complete size.",
+      canonical: "/tyre-sizes",
+      description:
+        "Browse commonly requested tyre sizes and compare current brand options in Lahore. Final vehicle fitment and availability are confirmed before supply.",
+    },
+  }[focus] || null;
+  const activeCopy = pageCopy || {
+    title: "Find Tyres by Size, Brand or Vehicle",
+    h1: "Find the right tyres for your car.",
+    canonical: "/tyres",
+    description:
+      "Find tyre options by size, brand or vehicle. Wheels & Wheels Lahore checks current availability, market rates and safe fitment before supply.",
+  };
+  const faq = [
+    {
+      question: "Where can I find my tyre size?",
+      answer: "The size is printed on the tyre sidewall in a format such as 195/65 R15. You can also share a clear sidewall photo with our team.",
+    },
+    {
+      question: "Can I choose a tyre using only the rim diameter?",
+      answer: "No. Width, profile, rim diameter, load rating and vehicle requirements all matter. Wheels & Wheels confirms the complete fitment before supply.",
+    },
+    {
+      question: "Are website rates fixed?",
+      answer: "Tyre import costs and market availability change. Ask our team for the current rate and confirmed stock for your required size and brand.",
+    },
+  ];
+
+  const submitFitment = (event) => {
+    event.preventDefault();
+    const size = `${fitment.width}/${fitment.profile} R${fitment.rim}`;
+    navigate(`/shop?category=Tyres&size=${encodeURIComponent(size)}`);
+  };
+
+  return (
+    <main className="growth-page discovery-hub">
+      <SeoHead
+        title={activeCopy.title}
+        description={activeCopy.description}
+        canonical={activeCopy.canonical}
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: activeCopy.title, path: activeCopy.canonical },
+        ]}
+        faq={faq}
+      />
+
+      <nav className="growth-breadcrumbs breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+          <li><Link to="/">Home</Link></li>
+          <li><span aria-current="page">{activeCopy.title}</span></li>
+        </ol>
+      </nav>
+
+      <header className="growth-hero discovery-hero">
+        <div className="growth-hero-copy">
+          <p className="eyebrow">SIZE · BRAND · VEHICLE</p>
+          <h1>{activeCopy.h1}</h1>
+          <p className="growth-lede">
+            Start with the complete size on your tyre sidewall, browse trusted brands, or check common vehicle fitments. Our team verifies the final match before supply.
+          </p>
+          <div className="growth-actions">
+            <a
+              className="primary"
+              href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Hi Wheels & Wheels, please help me find tyres. My vehicle and current tyre size are: ")}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FaWhatsapp aria-hidden="true" /> Ask on official WhatsApp
+            </a>
+            <a className="growth-call-button" href="tel:+923214229594">
+              <FaPhoneAlt aria-hidden="true" /> Call sales
+            </a>
+          </div>
+        </div>
+
+        <form className="discovery-finder" onSubmit={submitFitment} aria-labelledby="finder-title">
+          <div>
+            <FaSearch aria-hidden="true" />
+            <div>
+              <p className="eyebrow">FIND BY TYRE SIZE</p>
+              <h2 id="finder-title">Enter your sidewall size</h2>
+            </div>
+          </div>
+          <label>
+            Width
+            <select
+              value={fitment.width}
+              onChange={(event) => setFitment({ ...fitment, width: event.target.value })}
+            >
+              {WIDTHS.map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </label>
+          <label>
+            Profile
+            <select
+              value={fitment.profile}
+              onChange={(event) => setFitment({ ...fitment, profile: event.target.value })}
+            >
+              {PROFILES.map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </label>
+          <label>
+            Rim diameter
+            <select
+              value={fitment.rim}
+              onChange={(event) => setFitment({ ...fitment, rim: event.target.value })}
+            >
+              {RIMS.map((value) => <option key={value} value={value}>{value} inch</option>)}
+            </select>
+          </label>
+          <button className="primary" type="submit">
+            Show tyre options <FaChevronRight aria-hidden="true" />
+          </button>
+          <p>Example: 195 width · 65 profile · R15 rim. Check all three values on the sidewall.</p>
+        </form>
+      </header>
+
+      {(focus === "all" || focus === "brand") && (
+        <DiscoverySection
+          id="discover-brands"
+          eyebrow="PREMIUM · JAPANESE · CHINESE"
+          title="Explore tyre brands"
+          intro="Compare brand positioning, commonly requested models and current sourcing options."
+          items={focus === "brand" ? brands : brands.slice(0, 9)}
+          type="brand"
+          allHref={focus === "all" ? "/brands" : undefined}
+          allLabel="View all brands"
+        />
+      )}
+
+      {(focus === "all" || focus === "vehicle") && (
+        <DiscoverySection
+          id="discover-vehicles"
+          eyebrow="START WITH YOUR CAR"
+          title="Find tyres by vehicle"
+          intro="Common sizes are a starting point only. Always verify the model year, variant and existing sidewall size."
+          items={focus === "vehicle" ? vehicles : vehicles.slice(0, 8)}
+          type="vehicle"
+          allHref={focus === "all" ? "/vehicles" : undefined}
+          allLabel="View all vehicles"
+        />
+      )}
+
+      {(focus === "all" || focus === "size") && (
+        <DiscoverySection
+          id="discover-sizes"
+          eyebrow="POPULAR FITMENTS"
+          title="Browse tyres by size"
+          intro="Use an exact width, profile and rim diameter to narrow the options available for quotation."
+          items={focus === "size" ? sizes : sizes.slice(0, 12)}
+          type="size"
+          allHref={focus === "all" ? "/tyre-sizes" : undefined}
+          allLabel="View all sizes"
+        />
+      )}
+
+      <section className="discovery-help section" aria-labelledby="discovery-help-title">
+        <div>
+          <FaCar aria-hidden="true" />
+          <h2 id="discovery-help-title">Do not know your tyre size?</h2>
+          <p>Send a clear sidewall photo plus your vehicle make, model and year.</p>
+          <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noreferrer">
+            Send a photo on WhatsApp <FaChevronRight aria-hidden="true" />
+          </a>
+        </div>
+        <div>
+          <FaTags aria-hidden="true" />
+          <h2>Need a current rate?</h2>
+          <p>Tell us the exact size and preferred origin or brand for a live quotation.</p>
+          <Link to="/quote">Request a quotation <FaChevronRight aria-hidden="true" /></Link>
+        </div>
+      </section>
+
+      <section className="growth-faq section" aria-labelledby="discovery-faq-title">
+        <p className="eyebrow">FITMENT BASICS</p>
+        <h2 id="discovery-faq-title">Common questions before buying</h2>
+        <div className="growth-faq-list">
+          {faq.map((item) => (
+            <details key={item.question}>
+              <summary>{item.question}</summary>
+              <p>{item.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export function BrandsHub() {
+  return <DiscoveryHub focus="brand" />;
+}
+
+export function VehiclesHub() {
+  return <DiscoveryHub focus="vehicle" />;
+}
+
+export function TyreSizesHub() {
+  return <DiscoveryHub focus="size" />;
+}

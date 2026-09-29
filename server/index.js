@@ -5,7 +5,9 @@ import mongoose from "mongoose";
 import compression from "compression";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import crypto from "node:crypto";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import Product from "./models/Product.js";
 import Order from "./models/Order.js";
@@ -18,7 +20,10 @@ import {
   signToken,
   verifyPassword,
 } from "./auth.js";
-import { seedProducts } from "./seedData.js";
+
+mongoose.set("bufferCommands", false);
+const isProductionRuntime =
+  process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
 
 export const app = express();
 app.disable("x-powered-by");
@@ -27,14 +32,29 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
   .split(",")
-  .map((value) => value.trim());
+  .map((value) => value.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin))
-        return callback(null, true);
-      callback(new Error("Origin not allowed"));
-    },
+  cors((req, callback) => {
+    const origin = String(req.headers.origin || "").replace(/\/$/, "");
+    const requestHost = String(
+      req.headers["x-forwarded-host"] || req.headers.host || "",
+    )
+      .split(",")[0]
+      .trim();
+    let sameOrigin = false;
+    if (origin && requestHost) {
+      try {
+        sameOrigin = new URL(origin).host === requestHost;
+      } catch {
+        sameOrigin = false;
+      }
+    }
+    if (!origin || sameOrigin || allowedOrigins.includes(origin))
+      return callback(null, { origin: origin || false });
+    const error = new Error("Origin not allowed");
+    error.status = 403;
+    return callback(error);
   }),
 );
 app.use(express.json({ limit: "64kb" }));
@@ -57,45 +77,224 @@ const loginLimiter = rateLimit({
 app.use("/api/orders", sensitiveLimiter);
 app.use("/api/auth/login", loginLimiter);
 
-let catalogCache = { key: "", expires: 0, value: null };
-const clearCatalogCache = () => {
-  catalogCache = { key: "", expires: 0, value: null };
+const configuredCatalogTtl = Number(process.env.CATALOG_CACHE_TTL_MS);
+const CATALOG_CACHE_TTL_MS = Number.isFinite(configuredCatalogTtl)
+  ? Math.min(600_000, Math.max(5_000, configuredCatalogTtl))
+  : 300_000;
+const CATALOG_CACHE_MAX_ENTRIES = 50;
+const catalogCache = new Map();
+const catalogInflight = new Map();
+
+const httpError = (status, message) =>
+  Object.assign(new Error(message), { status });
+
+const pagination = (req, defaultLimit = 250, maxLimit = 250) => {
+  const rawPage = req.query.page;
+  const rawLimit = req.query.limit;
+  const page = rawPage === undefined ? 1 : Number(rawPage);
+  const requestedLimit = rawLimit === undefined ? defaultLimit : Number(rawLimit);
+  if (!Number.isInteger(page) || page < 1 || page > 1000)
+    throw httpError(400, "Page must be an integer between 1 and 1000");
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1)
+    throw httpError(400, "Limit must be a positive integer");
+  return { page, limit: Math.min(requestedLimit, maxLimit) };
 };
 
-app.get("/api/health", (_req, res) =>
-  res.json({
-    ok: true,
-    database:
-      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-  }),
-);
+const setPaginationHeaders = (res, page, size, hasMore) => {
+  res.set({
+    "X-Page": String(page),
+    "X-Page-Size": String(size),
+    "X-Has-More": String(hasMore),
+  });
+};
+
+const setPublicCatalogCacheHeaders = (res) => {
+  res.set({
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "Vercel-CDN-Cache-Control":
+      "public, s-maxage=300, stale-while-revalidate=3600",
+  });
+};
+
+const readCatalogCache = (key) => {
+  const entry = catalogCache.get(key);
+  if (!entry) return null;
+  if (entry.expires <= Date.now()) {
+    catalogCache.delete(key);
+    return null;
+  }
+  // Refresh insertion order so frequently-used variants remain in the bounded map.
+  catalogCache.delete(key);
+  catalogCache.set(key, entry);
+  return entry;
+};
+
+const writeCatalogCache = (key, value) => {
+  catalogCache.delete(key);
+  catalogCache.set(key, {
+    ...value,
+    expires: Date.now() + CATALOG_CACHE_TTL_MS,
+  });
+  while (catalogCache.size > CATALOG_CACHE_MAX_ENTRIES)
+    catalogCache.delete(catalogCache.keys().next().value);
+};
+
+const clearCatalogCache = () => {
+  catalogCache.clear();
+};
+
+const cleanText = (body, key, { required = false, min = 0, max }) => {
+  const raw = body[key];
+  if (raw === undefined || raw === null) {
+    if (required) throw httpError(400, `${key} is required`);
+    return "";
+  }
+  if (typeof raw !== "string")
+    throw httpError(400, `${key} must be text`);
+  const value = raw.trim();
+  if (required && value.length < min)
+    throw httpError(400, `${key} is too short`);
+  if (max && value.length > max)
+    throw httpError(400, `${key} must be ${max} characters or fewer`);
+  return value;
+};
+
+const validateInquiry = (body) => {
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw httpError(400, "Enter valid request details");
+  const allowed = new Set([
+    "name",
+    "phone",
+    "email",
+    "city",
+    "vehicle",
+    "tyreSize",
+    "budget",
+    "message",
+    "website",
+    "_gotcha",
+  ]);
+  if (Object.keys(body).some((key) => !allowed.has(key)))
+    throw httpError(400, "The request contains unsupported fields");
+  const honeypot = String(body.website || body._gotcha || "").trim();
+  if (honeypot) return { honeypot: true };
+
+  const name = cleanText(body, "name", { required: true, min: 2, max: 100 });
+  const phone = cleanText(body, "phone", { required: true, min: 7, max: 24 });
+  const email = cleanText(body, "email", { max: 254 }).toLowerCase();
+  const city = cleanText(body, "city", { max: 100 });
+  const vehicle = cleanText(body, "vehicle", { max: 160 });
+  const tyreSize = cleanText(body, "tyreSize", { max: 64 });
+  const budget = cleanText(body, "budget", { max: 80 });
+  const message = cleanText(body, "message", {
+    required: true,
+    min: 3,
+    max: 2000,
+  });
+  const phoneDigits = phone.replace(/\D/g, "");
+  if (!/^[+()\-\s\d]+$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15)
+    throw httpError(400, "Enter a valid phone or WhatsApp number");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw httpError(400, "Enter a valid email address");
+  const dedupeKey = crypto
+    .createHash("sha256")
+    .update(`${phoneDigits}|${tyreSize.toLowerCase()}|${message.toLowerCase()}`)
+    .digest("hex");
+  return {
+    name,
+    phone,
+    email,
+    city,
+    vehicle,
+    tyreSize,
+    budget,
+    message,
+    dedupeKey,
+  };
+};
+
+app.get("/api/health", (_req, res) => {
+  const connected = mongoose.connection.readyState === 1;
+  res.set("Cache-Control", "no-store");
+  return res.status(connected ? 200 : 503).json({
+    ok: connected,
+    database: connected ? "connected" : "disconnected",
+  });
+});
 app.get("/api/products", async (req, res, next) => {
   try {
+    const { page, limit } = pagination(req);
+    const category = String(req.query.category || "").trim();
+    const q = String(req.query.q || "").trim().replace(/\s+/g, " ");
+    if (category && !["Tyres", "Rims"].includes(category))
+      throw httpError(400, "Invalid product category");
+    if (q.length > 80) throw httpError(400, "Search is too long");
+    const isPublicRequest = !req.headers.authorization;
+    const isCdnCacheable = isPublicRequest && !q && limit === 250;
     const cacheKey = JSON.stringify({
-      category: req.query.category || "",
-      q: req.query.q || "",
+      category,
+      q,
+      page,
+      limit,
     });
-    if (
-      catalogCache.value &&
-      catalogCache.key === cacheKey &&
-      catalogCache.expires > Date.now()
-    ) {
+    const cached = isPublicRequest ? readCatalogCache(cacheKey) : null;
+    if (cached) {
+      if (isCdnCacheable) setPublicCatalogCacheHeaders(res);
+      else res.set("Cache-Control", "private, no-store");
+      setPaginationHeaders(res, page, cached.value.length, cached.hasMore);
       res.set("X-Cache", "HIT");
-      return res.json(catalogCache.value);
+      return res.json(cached.value);
     }
-    const filter = {};
-    if (req.query.category) filter.category = req.query.category;
-    if (req.query.q) filter.$text = { $search: req.query.q };
-    const products = await Product.find(filter)
-      .sort({ featured: -1, createdAt: -1 })
-      .lean();
-    catalogCache = {
-      key: cacheKey,
-      expires: Date.now() + 30_000,
-      value: products,
+    const loadProducts = async () => {
+      const filter = {};
+      if (category) filter.category = category;
+      if (q) filter.$text = { $search: q };
+      const productRows = await Product.find(filter)
+        .select("-__v")
+        .sort({ featured: -1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit + 1)
+        .maxTimeMS(4000)
+        .lean();
+      return {
+        value: productRows.slice(0, limit),
+        hasMore: productRows.length > limit,
+      };
     };
-    res.set("Cache-Control", "public, max-age=15, stale-while-revalidate=60");
-    res.set("X-Cache", "MISS");
+    let result;
+    let cacheStatus = "MISS";
+    if (isPublicRequest) {
+      let query = catalogInflight.get(cacheKey);
+      if (query) {
+        cacheStatus = "COALESCED";
+      } else {
+        query = loadProducts();
+        catalogInflight.set(cacheKey, query);
+        query.then(
+          () => {
+            if (catalogInflight.get(cacheKey) === query)
+              catalogInflight.delete(cacheKey);
+          },
+          () => {
+            if (catalogInflight.get(cacheKey) === query)
+              catalogInflight.delete(cacheKey);
+          },
+        );
+      }
+      result = await query;
+    } else {
+      result = await loadProducts();
+    }
+    const { value: products, hasMore } = result;
+    if (isPublicRequest) {
+      writeCatalogCache(cacheKey, result);
+      if (isCdnCacheable) setPublicCatalogCacheHeaders(res);
+      else res.set("Cache-Control", "private, no-store");
+    } else {
+      res.set("Cache-Control", "private, no-store");
+    }
+    setPaginationHeaders(res, page, products.length, hasMore);
+    res.set("X-Cache", cacheStatus);
     res.json(products);
   } catch (e) {
     next(e);
@@ -103,16 +302,31 @@ app.get("/api/products", async (req, res, next) => {
 });
 app.get("/api/products/:id", async (req, res, next) => {
   try {
-    const item = await Product.findById(req.params.id);
-    item
-      ? res.json(item)
-      : res.status(404).json({ message: "Product not found" });
+    const identifier = String(req.params.id || "").trim().toLowerCase();
+    const isObjectId = mongoose.isValidObjectId(identifier);
+    if (!isObjectId && !/^[a-z0-9-]{2,120}$/.test(identifier))
+      return res.status(404).json({ message: "Product not found" });
+    const item = await Product.findOne(
+      isObjectId ? { _id: identifier } : { slug: identifier },
+    )
+      .select("-__v")
+      .maxTimeMS(4000)
+      .lean();
+    if (!item) {
+      res.set("Cache-Control", "no-store");
+      return res.status(404).json({ message: "Product not found" });
+    }
+    if (req.headers.authorization)
+      res.set("Cache-Control", "private, no-store");
+    else setPublicCatalogCacheHeaders(res);
+    return res.json(item);
   } catch (e) {
     next(e);
   }
 });
 app.get("/api/orders/track/:id", async (req, res, next) => {
   try {
+    res.set("Cache-Control", "private, no-store");
     if (!mongoose.isValidObjectId(req.params.id))
       return res.status(400).json({ message: "Enter a valid order number" });
     const order = await Order.findOne({
@@ -133,12 +347,29 @@ app.get("/api/orders/track/:id", async (req, res, next) => {
 
 app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
   try {
-    const { name, phone, email, city, vehicle, tyreSize, budget, message } =
-      req.body;
-    if (!name || !phone || !message)
-      return res
-        .status(400)
-        .json({ message: "Name, phone and requirements are required" });
+    res.set("Cache-Control", "no-store");
+    const details = validateInquiry(req.body);
+    if (details.honeypot)
+      return res.status(202).json({
+        inquiryId: "000000000000000000000000",
+        status: "new",
+      });
+    const { name, phone, email, city, vehicle, tyreSize, budget, message, dedupeKey } =
+      details;
+    const duplicate = await Inquiry.findOne({
+      dedupeKey,
+      createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+    })
+      .select("_id status")
+      .maxTimeMS(3000)
+      .lean();
+    if (duplicate) {
+      res.set("X-Deduplicated", "true");
+      return res.json({
+        inquiryId: duplicate._id,
+        status: duplicate.status,
+      });
+    }
     const inquiry = await Inquiry.create({
       name,
       phone,
@@ -148,8 +379,9 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
       tyreSize,
       budget,
       message,
+      dedupeKey,
     });
-    sendNotification({
+    const emailSent = await sendNotification({
       subject: `New RFQ from ${name}`,
       heading: "New website RFQ",
       replyTo: email,
@@ -164,8 +396,15 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
         ["Budget", budget],
         ["Requirements", message],
       ],
-    }).catch((error) => console.error("RFQ email failed", error.message));
-    res.status(201).json({ inquiryId: inquiry._id, status: inquiry.status });
+    }).catch((error) => {
+      console.error("RFQ email failed", error.message);
+      return false;
+    });
+    res.status(201).json({
+      inquiryId: inquiry._id,
+      status: inquiry.status,
+      emailSent,
+    });
   } catch (e) {
     next(e);
   }
@@ -173,8 +412,11 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
 
 app.get("/api/inquiries/track/:id", sensitiveLimiter, async (req, res, next) => {
   try {
+    res.set("Cache-Control", "private, no-store");
     const phone = String(req.query.phone || "").replace(/\D/g, "");
     if (!phone) return res.status(400).json({ message: "Phone number is required" });
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res.status(404).json({ message: "RFQ not found. Check the reference and phone number." });
     const inquiry = await Inquiry.findById(req.params.id).lean();
     const savedPhone = String(inquiry?.phone || "").replace(/\D/g, "");
     if (!inquiry || savedPhone.slice(-10) !== phone.slice(-10))
@@ -200,6 +442,7 @@ app.get("/api/inquiries/track/:id", sensitiveLimiter, async (req, res, next) => 
 
 app.post("/api/auth/login", async (req, res, next) => {
   try {
+    res.set("Cache-Control", "private, no-store");
     const admin = await Admin.findOne({ email: req.body.email?.toLowerCase() });
     if (
       !admin ||
@@ -216,6 +459,7 @@ app.post("/api/auth/login", async (req, res, next) => {
 });
 app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
   try {
+    res.set("Cache-Control", "private, no-store");
     const since = new Date();
     since.setDate(since.getDate() - 29);
     since.setHours(0, 0, 0, 0);
@@ -326,16 +570,40 @@ app.delete("/api/products/:id", requireAdmin, async (req, res, next) => {
     next(e);
   }
 });
-app.get("/api/orders", requireAdmin, async (_req, res, next) => {
+app.get("/api/orders", requireAdmin, async (req, res, next) => {
   try {
-    res.json(await Order.find().sort({ createdAt: -1 }));
+    const { page, limit } = pagination(req, 250, 500);
+    const rows = await Order.find()
+      .select("-__v")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit + 1)
+      .maxTimeMS(5000)
+      .lean();
+    const hasMore = rows.length > limit;
+    const orders = rows.slice(0, limit);
+    res.set("Cache-Control", "private, no-store");
+    setPaginationHeaders(res, page, orders.length, hasMore);
+    res.json(orders);
   } catch (e) {
     next(e);
   }
 });
-app.get("/api/inquiries", requireAdmin, async (_req, res, next) => {
+app.get("/api/inquiries", requireAdmin, async (req, res, next) => {
   try {
-    res.json(await Inquiry.find().sort({ createdAt: -1 }));
+    const { page, limit } = pagination(req, 250, 500);
+    const rows = await Inquiry.find()
+      .select("-__v")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit + 1)
+      .maxTimeMS(5000)
+      .lean();
+    const hasMore = rows.length > limit;
+    const inquiries = rows.slice(0, limit);
+    res.set("Cache-Control", "private, no-store");
+    setPaginationHeaders(res, page, inquiries.length, hasMore);
+    res.json(inquiries);
   } catch (e) {
     next(e);
   }
@@ -537,72 +805,166 @@ app.post("/api/orders", async (_req, res) => {
   */
 });
 
+app.use("/api", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.status(404).json({ message: "API route not found" });
+});
+
 if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
   const projectRoot = path.resolve(
     fileURLToPath(new URL("..", import.meta.url)),
   );
   const frontend = path.join(projectRoot, "dist");
   app.use(
-    express.static(frontend, { maxAge: "1y", immutable: true, index: false }),
+    "/assets",
+    express.static(path.join(frontend, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+      index: false,
+    }),
   );
+  app.use(express.static(frontend, { maxAge: "1h", index: false }));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/")) return next();
-    res.sendFile(path.join(frontend, "index.html"));
+    const relativePath = req.path.replace(/^\/+/, "");
+    const prerendered = path.resolve(frontend, relativePath, "index.html");
+    if (
+      prerendered.startsWith(`${path.resolve(frontend)}${path.sep}`) &&
+      fs.existsSync(prerendered)
+    ) {
+      res.set("Cache-Control", "public, max-age=0, must-revalidate");
+      return res.sendFile(prerendered);
+    }
+    if (/^\/product\/[a-z0-9-]{2,120}$/i.test(req.path)) {
+      res.set("Cache-Control", "public, max-age=0, must-revalidate");
+      return res.sendFile(path.join(frontend, "product-fallback.html"));
+    }
+    const notFound = path.join(frontend, "404.html");
+    res.set("Cache-Control", "public, max-age=0, must-revalidate");
+    if (fs.existsSync(notFound)) return res.status(404).sendFile(notFound);
+    return res.status(404).send("Page not found");
   });
 }
 
-app.use((error, _req, res, _next) => {
-  void _next;
-  console.error(error);
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  const requestId = String(req.headers["x-vercel-id"] || crypto.randomUUID());
+  let status = Number(error.status) || 500;
+  let message = error.message || "Something went wrong";
   if (error.code === 11000)
     return res.status(409).json({ message: "That value already exists" });
-  res
-    .status(error.status || 500)
-    .json({ message: error.message || "Something went wrong" });
+  if (error.type === "entity.too.large") {
+    status = 413;
+    message = "Request body is too large";
+  } else if (error.name === "ValidationError") {
+    status = 400;
+    message = "Enter valid request data";
+  } else if (error.name === "CastError") {
+    status = 400;
+    message = "Enter a valid reference";
+  }
+  if (status < 400 || status > 599) status = 500;
+  console.error({
+    requestId,
+    method: req.method,
+    path: req.path,
+    status,
+    error: error.message,
+    ...(isProductionRuntime ? {} : { stack: error.stack }),
+  });
+  res.set("X-Request-Id", requestId);
+  if (isProductionRuntime && status >= 500)
+    message = "The service could not complete this request. Please try again.";
+  return res.status(status).json({ message, requestId });
 });
 
-let databasePromise;
+const mongoState = globalThis.__wheelsAndWheelsMongo || {
+  promise: null,
+  listenersAttached: false,
+};
+globalThis.__wheelsAndWheelsMongo = mongoState;
+
+if (!mongoState.listenersAttached) {
+  mongoose.connection.on("disconnected", () => {
+    mongoState.promise = null;
+  });
+  mongoose.connection.on("error", () => {
+    if (mongoose.connection.readyState === 0) mongoState.promise = null;
+  });
+  mongoState.listenersAttached = true;
+}
+
+const boundedNumber = (value, fallback, minimum, maximum) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.trunc(Math.min(maximum, Math.max(minimum, parsed)));
+};
 
 export function connectDatabase() {
-  if (mongoose.connection.readyState === 1) return Promise.resolve();
-  if (databasePromise) return databasePromise;
+  if (mongoose.connection.readyState === 1)
+    return Promise.resolve(mongoose.connection);
+  if (mongoose.connection.readyState === 2 && mongoState.promise)
+    return mongoState.promise;
+  if (mongoose.connection.readyState === 0) mongoState.promise = null;
+  if (mongoState.promise) return mongoState.promise;
 
   const uri = process.env.MONGODB_URI;
   if (!uri)
     throw new Error("MONGODB_URI is required. Copy .env.example to .env");
 
-  databasePromise = mongoose
+  mongoState.promise = mongoose
     .connect(uri, {
-      maxPoolSize: Number(process.env.MONGO_POOL_SIZE || 10),
+      maxPoolSize: boundedNumber(process.env.MONGO_POOL_SIZE, 10, 2, 50),
       minPoolSize: 0,
-      serverSelectionTimeoutMS: 5000,
+      maxConnecting: boundedNumber(process.env.MONGO_MAX_CONNECTING, 2, 1, 10),
+      maxIdleTimeMS: boundedNumber(
+        process.env.MONGO_MAX_IDLE_TIME_MS,
+        30_000,
+        5_000,
+        120_000,
+      ),
+      waitQueueTimeoutMS: boundedNumber(
+        process.env.MONGO_WAIT_QUEUE_TIMEOUT_MS,
+        5_000,
+        1_000,
+        30_000,
+      ),
+      connectTimeoutMS: 10_000,
+      serverSelectionTimeoutMS: 5_000,
     })
-    .then(async () => {
-      if ((await Product.countDocuments()) === 0)
-        await Product.insertMany(seedProducts);
-      if ((await Admin.countDocuments()) === 0) {
-        const password = process.env.ADMIN_PASSWORD;
-        if (!password)
-          throw new Error("ADMIN_PASSWORD is required for the first admin");
-        const { salt, hash } = hashPassword(password);
-        await Admin.create({
-          name: process.env.ADMIN_NAME || "Store Admin",
-          email: process.env.ADMIN_EMAIL || "admin@wheelsandwheels.pk",
-          salt,
-          passwordHash: hash,
-        });
-      }
-    })
+    .then(() => mongoose.connection)
     .catch((error) => {
-      databasePromise = undefined;
+      mongoState.promise = null;
       throw error;
     });
 
-  return databasePromise;
+  return mongoState.promise;
+}
+
+export async function provisionDatabase() {
+  await connectDatabase();
+  if ((await Product.countDocuments()) === 0) {
+    const { seedProducts } = await import("./seedData.js");
+    await Product.insertMany(seedProducts);
+  }
+  if ((await Admin.countDocuments()) === 0) {
+    const password = process.env.ADMIN_PASSWORD;
+    if (!password)
+      throw new Error("ADMIN_PASSWORD is required for the first admin");
+    const { salt, hash } = hashPassword(password);
+    await Admin.create({
+      name: process.env.ADMIN_NAME || "Store Admin",
+      email: process.env.ADMIN_EMAIL || "admin@wheelsandwheels.pk",
+      salt,
+      passwordHash: hash,
+    });
+  }
 }
 
 async function bootstrap() {
   await connectDatabase();
+  if (!isProductionRuntime || process.env.AUTO_PROVISION === "true")
+    await provisionDatabase();
   const port = process.env.PORT || 5000;
   const server = app.listen(port, () =>
     console.log(`Wheels & Wheels API: http://localhost:${port}`),

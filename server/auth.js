@@ -1,7 +1,17 @@
 import crypto from "node:crypto";
 
-const secret = () =>
-  process.env.JWT_SECRET || "change-this-secret-in-production";
+const isProduction =
+  process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+
+const secret = () => {
+  const configured = String(process.env.JWT_SECRET || "").trim();
+  if (configured.length >= 32) return configured;
+  if (isProduction)
+    throw new Error(
+      "JWT_SECRET must be configured with at least 32 characters in production",
+    );
+  return configured || "development-only-change-this-secret";
+};
 const encode = (value) =>
   Buffer.from(JSON.stringify(value)).toString("base64url");
 
@@ -38,8 +48,12 @@ export function signToken(admin) {
 
 export function requireAdmin(req, res, next) {
   try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
+    const authorization = req.headers.authorization || "";
+    const token = authorization.startsWith("Bearer ")
+      ? authorization.slice(7)
+      : "";
     const [payload, signature] = token?.split(".") || [];
+    if (!payload || !signature) throw new Error();
     const expected = crypto
       .createHmac("sha256", secret())
       .update(payload)

@@ -1,93 +1,97 @@
-# Wheels & Wheels — Production Structure
+# Wheels & Wheels production structure
 
 ## Customer journey
 
 ```text
 Home
-├── Shop
-│   ├── Chinese tyre brands (12–24 inch)
-│   ├── Japanese tyre brands (12–24 inch)
-│   ├── Alloy rims (12–24 inch)
-│   └── Product detail → zoom → cart → checkout
-├── Request current rates
-│   ├── Submit vehicle, size and requirements
-│   ├── Receive private RFQ reference
-│   ├── Check quotation status (reference + phone)
-│   └── Accept/discuss on official WhatsApp
-├── Track order (order reference + phone)
-└── Services
-    ├── Tyre installation
-    ├── Computerised balancing
-    └── Wheel alignment
+├── Shop and tyre finder
+│   ├── Exact size (width / profile / rim)
+│   ├── Japanese, premium and Chinese brands
+│   ├── Vehicle discovery pages
+│   └── 12–24 inch tyres and rims
+├── Product or fitment page
+│   ├── Inspect image and specification
+│   ├── Add requirement to quote list
+│   └── Ask the current rate
+├── Rate request
+│   ├── Submit contact, vehicle, size and requirement
+│   └── Receive an RFQ reference
+└── Sales confirmation
+    ├── Call 0321 4229594 or 0339 0045836
+    └── WhatsApp 0339 0045836
 ```
 
-## Sales and fulfilment journey
+The website is a lead-generation catalogue. It does not accept payment, promise live stock, or let a customer complete an order online.
+
+## Sales workflow
 
 ```text
 New RFQ → Contacted → Quoted → Won → Closed
-              │          │
-              │          ├── rate, products, availability, validity
-              │          ├── automatic customer email
-              │          └── official WhatsApp follow-up
-              └── private admin notes
-
-New order → Pending → Confirmed → Shipped → Completed
-                         └── stock deducted and visible in dashboard
+    │          │          │
+    │          │          └── record final outcome
+    │          └── add current amount, items, availability and response
+    └── dashboard record + best-effort email notification
 ```
 
-## Current deployable repository
+MongoDB is the source of truth. Email alerts can fail or be delayed, so the administrator should use the RFQ dashboard as the authoritative queue.
+
+## Search architecture
+
+```text
+/tyres                       tyre discovery hub
+/tyre-sizes/:size            exact-size intent pages
+/brands/:brand               tyre brand pages
+/vehicles/:make-model        vehicle discovery pages
+/product/:slug               product detail pages
+/services/:service           service detail pages
+/guides/:slug                original educational content
+/lahore-tyre-shop            local Lahore landing page
+/about /contact /faq         trust and business information
+```
+
+The production build pre-renders indexable routes with unique titles, descriptions, canonicals, visible HTML, structured data, and internal links. `sitemap.xml` contains only indexable canonical pages. Admin, quote utility pages, unknown products, and 404 pages are no-index.
+
+Vehicle and tyre-size pages are discovery aids, not fitment guarantees. The team verifies the complete tyre marking, load/speed rating, wheel specification, and vehicle requirements before confirming a sale.
+
+## Repository
 
 ```text
 wheels/
-├── public/                 # logo, product/service images, PWA files
-├── scripts/                # migration, admin and load-test utilities
+├── api/                     Vercel serverless API entry
+├── public/                  optimized brand and catalogue assets
+├── scripts/                 provisioning, migration, SEO and load utilities
 ├── server/
-│   ├── models/             # Admin, Product, Order, Inquiry schemas
-│   ├── auth.js             # admin password hashing and signed sessions
-│   ├── notifications.js    # staff and customer email delivery
-│   ├── seedData.js         # controlled catalogue seeding
-│   └── index.js            # API, security, validation, static production app
+│   ├── models/              Admin, Product, Inquiry and legacy Order schemas
+│   ├── auth.js              password hashing and signed admin sessions
+│   ├── notifications.js     staff/customer email attempts
+│   ├── seedData.js          controlled starter catalogue
+│   └── index.js             API, validation, caching and local production host
 ├── src/
-│   ├── components/         # reusable page sections
-│   ├── Data/               # frontend fallback catalogue
-│   ├── api.js              # same-origin API client
-│   ├── App.jsx             # routes and current page modules
-│   └── style.css            # responsive visual system
-├── .env                    # private deployment configuration (never commit)
+│   ├── components/growth/   SEO, trust and business pages
+│   ├── Data/                catalogue and search landing-page content
+│   ├── api.js               same-origin API client
+│   ├── App.jsx              router, shop, RFQ and admin experiences
+│   └── style.css            responsive design system
+├── vercel.json              Vercel routes, cache and security headers
 └── package.json
 ```
 
-## Recommended next modular split
+## Runtime boundaries
 
-As features grow, move the existing working modules without changing behavior:
+- Vercel/CDN serves static pages and immutable hashed assets.
+- Express handles `/api/*`; MongoDB Atlas persists products, administrators and RFQs.
+- Public catalogue reads are projected, bounded, cached at the edge, and coalesced per warm API instance.
+- Admin endpoints are private/no-store and require a signed token.
+- Credentials, database URLs and SMTP secrets exist only in local `.env` or deployment environment variables.
+- `npm run db:provision` is an explicit one-time operation; production serverless startup never creates an administrator or seeds records automatically.
+- The disabled legacy order model remains available for a future, separately reviewed commerce phase, but public order creation returns `410` today.
 
-```text
-src/
-├── app/                    # router, providers, route effects
-├── features/
-│   ├── catalogue/          # shop, filters, product detail, zoom
-│   ├── cart-checkout/      # cart, order placement, order tracking
-│   ├── quotations/         # RFQ request and customer quote status
-│   └── admin/              # analytics, inventory, orders, RFQ desk
-├── components/             # header, footer, buttons, shared forms
-└── styles/                 # tokens, layout, components, responsive rules
+## Scale boundary
 
-server/
-├── config/                 # environment and database configuration
-├── middleware/             # auth, rate limits, validation, errors
-├── modules/
-│   ├── products/           # model, service, controller, routes
-│   ├── orders/             # stock-safe transactions and fulfilment
-│   ├── quotations/         # quote workflow, privacy and notifications
-│   └── analytics/          # sales and stock summaries
-└── index.js                # small application bootstrap only
-```
+The current architecture removes obvious single-instance bottlenecks and passed local burst testing, but concurrency capacity is an end-to-end property of Vercel limits, MongoDB Atlas tier/indexes, geography, email delivery, and traffic shape. Before a campaign targeting thousands of simultaneous visitors, run a distributed staging test and add:
 
-## Production boundaries
-
-- MongoDB is the source of truth; the browser never receives admin-only fields.
-- Public order and RFQ lookup require both a reference and matching phone number.
-- SMTP sends new leads to sales and completed quotations to customers.
-- Prices requested through RFQ remain human-approved because fitment, stock and import rates change.
-- Admin credentials, database credentials and SMTP app passwords remain only in deployment environment variables.
-- A reverse proxy/domain should enforce HTTPS, while the API keeps Helmet, compression and rate limits enabled.
+- shared Redis/Upstash rate limiting;
+- CAPTCHA or bot protection on RFQ/login endpoints;
+- a durable transactional-email provider/queue;
+- production monitoring, alerting and database performance dashboards;
+- a rollback-tested Vercel preview-to-production release process.

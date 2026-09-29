@@ -6,6 +6,7 @@ const times = [];
 let completed = 0;
 let failed = 0;
 let statusErrors = 0;
+const statusCounts = {};
 
 async function client() {
   while (Date.now() < deadline) {
@@ -13,6 +14,7 @@ async function client() {
     try {
       const response = await fetch(target);
       await response.arrayBuffer();
+      statusCounts[response.status] = (statusCounts[response.status] || 0) + 1;
       if (!response.ok) statusErrors += 1;
       else completed += 1;
     } catch {
@@ -37,6 +39,7 @@ console.log(
       completed,
       failed,
       statusErrors,
+      statusCounts,
       requestsPerSecond: Number((completed / seconds).toFixed(1)),
       latencyMs: {
         average: Number(

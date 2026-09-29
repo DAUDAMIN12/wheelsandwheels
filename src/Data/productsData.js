@@ -315,4 +315,14 @@ export const formatPrice = (value) =>
   Number(value) > 0
     ? `Rs. ${Number(value).toLocaleString("en-PK")}`
     : "Ask current rate";
-export default PRODUCTS_DATA;
+const slugify = (value) =>
+  String(value)
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+export default PRODUCTS_DATA.map((product) => ({
+  ...product,
+  slug: product.slug || slugify(product.title),
+}));

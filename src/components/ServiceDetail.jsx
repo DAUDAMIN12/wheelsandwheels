@@ -8,6 +8,7 @@ import {
 } from "react-icons/fa";
 import { Link, useParams } from "react-router-dom";
 import { SERVICES } from "../Data/services.js";
+import SeoHead from "./growth/SeoHead.jsx";
 
 const WHATSAPP = "923390045836";
 
@@ -17,13 +18,58 @@ export default function ServiceDetail() {
   const [openFaq, setOpenFaq] = useState(0);
   if (!service)
     return (
-      <main className="service-not-found">
-        <h1>Service not found</h1>
-        <Link to="/#services">View our services</Link>
-      </main>
+      <>
+        <SeoHead
+          title="Service Not Found"
+          description="The requested Wheels & Wheels service page could not be found."
+          noIndex
+        />
+        <main className="service-not-found">
+          <h1>Service not found</h1>
+          <Link to="/services">View our services</Link>
+        </main>
+      </>
     );
-  const booking = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi Wheels & Wheels, I would like to book ${service.title}. My vehicle is: `)}`;
+  const booking = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi Wheels & Wheels, please share the current rate and availability for ${service.title}. My vehicle is: `)}`;
+  const canonical = `/services/${service.slug}`;
+  const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
+  const description = `${service.summary} Ask Wheels & Wheels Lahore for the current service rate and available time.`;
   return (
+    <>
+      <SeoHead
+        title={`${service.title} in Lahore`}
+        description={description}
+        canonical={canonical}
+        image={service.heroImg}
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Wheel services", path: "/services" },
+          { name: service.title, path: canonical },
+        ]}
+        faq={service.faq}
+        schemas={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            name: service.title,
+            description,
+            url: `${siteUrl}${canonical}`,
+            provider: {
+              "@type": "AutomotiveBusiness",
+              name: "Wheels & Wheels",
+              telephone: "+923214229594",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress:
+                  "Old Tyre Market, near Rawali Cinema and Railway Station, Aslam Khan Road",
+                addressLocality: "Lahore",
+                addressCountry: "PK",
+              },
+            },
+            areaServed: { "@type": "City", name: "Lahore" },
+          },
+        ]}
+      />
     <main className="service-detail-page">
       <section
         className="service-detail-hero"
@@ -32,14 +78,14 @@ export default function ServiceDetail() {
         }}
       >
         <div>
-          <Link to="/#services" className="service-back">
+          <Link to="/services" className="service-back">
             Services / {service.number}
           </Link>
           <div className="eyebrow light">{service.eyebrow}</div>
           <h1>{service.title}</h1>
           <p>{service.tagline}</p>
           <a href={booking} target="_blank" rel="noreferrer">
-            <FaWhatsapp /> Book this service <FaChevronRight />
+            <FaWhatsapp /> Ask current rate <FaChevronRight />
           </a>
         </div>
       </section>
@@ -135,17 +181,18 @@ export default function ServiceDetail() {
       </section>
       <section className="service-book">
         <div>
-          <small>READY FOR A SAFER, SMOOTHER DRIVE?</small>
-          <h2>Book {service.title.toLowerCase()}.</h2>
+          <small>ASK ABOUT THE CURRENT RATE</small>
+          <h2>Enquire about {service.title.toLowerCase()}.</h2>
           <p>
             Send your vehicle make, model and preferred time. We will confirm
             availability and pricing.
           </p>
         </div>
         <a href={booking} target="_blank" rel="noreferrer">
-          <FaWhatsapp /> Book on WhatsApp
+          <FaWhatsapp /> Ask on WhatsApp
         </a>
       </section>
     </main>
+    </>
   );
 }

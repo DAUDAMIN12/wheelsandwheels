@@ -33,4 +33,9 @@ const schema = new mongoose.Schema(
   { timestamps: true },
 );
 schema.index({ title: "text", brand: "text", size: "text" });
+schema.index({ featured: -1, createdAt: -1 });
+schema.index({ category: 1, featured: -1, createdAt: -1 });
+schema.index({ category: 1, origin: 1, brand: 1 });
+schema.index({ category: 1, rimDiameter: 1, width: 1, profile: 1 });
+schema.index({ stock: 1 });
 export default mongoose.model("Product", schema);

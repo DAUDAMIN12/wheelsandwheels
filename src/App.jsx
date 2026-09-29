@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -28,11 +28,50 @@ import {
   FaWhatsapp,
 } from "react-icons/fa";
 import PRODUCTS, { formatPrice } from "./Data/productsData";
-import { api } from "./api";
+import { api, apiWithMeta } from "./api";
 import ServiceDetail from "./components/ServiceDetail.jsx";
 import FloatingWhatsApp from "./components/FloatingWhatsApp.jsx";
+import SeoHead from "./components/growth/SeoHead.jsx";
+
+const DiscoveryHub = lazy(() => import("./components/growth/DiscoveryHub.jsx"));
+const BrandsHub = lazy(() =>
+  import("./components/growth/DiscoveryHub.jsx").then((module) => ({ default: module.BrandsHub })),
+);
+const VehiclesHub = lazy(() =>
+  import("./components/growth/DiscoveryHub.jsx").then((module) => ({ default: module.VehiclesHub })),
+);
+const TyreSizesHub = lazy(() =>
+  import("./components/growth/DiscoveryHub.jsx").then((module) => ({ default: module.TyreSizesHub })),
+);
+const GuidesHub = lazy(() => import("./components/growth/GuidesHub.jsx"));
+const GuideArticle = lazy(() => import("./components/growth/GuideArticle.jsx"));
+const BrandLandingPage = lazy(() =>
+  import("./components/growth/SeoLandingPage.jsx").then((module) => ({ default: module.BrandLandingPage })),
+);
+const VehicleLandingPage = lazy(() =>
+  import("./components/growth/SeoLandingPage.jsx").then((module) => ({ default: module.VehicleLandingPage })),
+);
+const SizeLandingPage = lazy(() =>
+  import("./components/growth/SeoLandingPage.jsx").then((module) => ({ default: module.SizeLandingPage })),
+);
+const AboutPage = lazy(() =>
+  import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.AboutPage })),
+);
+const ContactPage = lazy(() =>
+  import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.ContactPage })),
+);
+const ServicesPage = lazy(() =>
+  import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.ServicesPage })),
+);
+const LahoreTyreShopPage = lazy(() =>
+  import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.LahoreTyreShopPage })),
+);
+const FAQPage = lazy(() =>
+  import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.FAQPage })),
+);
 
 const WHATSAPP = "923390045836";
+const RFQ_PAGE_SIZE = 50;
 const ONLINE_CHECKOUT_ENABLED = false;
 const CUSTOMER_PORTAL_ENABLED = false;
 const BRAND_PRIORITY = [
@@ -95,18 +134,18 @@ function RouteEffects() {
 function ProductCard({ product, add }) {
   const productDestination = product.onRequest
     ? `/quote?tyreSize=${encodeURIComponent(product.size)}&message=${encodeURIComponent(`Please quote ${product.brand} options for ${product.size}.`)}`
-    : `/product/${product._id}`;
+    : `/product/${product.slug || product._id}`;
   return (
     <article className="product-card">
       <div className="product-image">
         <Link to={productDestination}>
-          <img src={product.image} alt={product.title} />
+          <img src={product.image} alt={product.title} loading="lazy" decoding="async" />
         </Link>
         {product.badge && <span className="pill">{product.badge}</span>}
         <button
           className="quick-add"
           onClick={() => add(product)}
-          aria-label={`Add ${product.title} to cart`}
+          aria-label={`Add ${product.title} to quote list`}
         >
           <FaPlus />
         </button>
@@ -123,10 +162,11 @@ function ProductCard({ product, add }) {
           <span>{product.vehicle}</span>
         </div>
         <div className="rating">
-          <FaStar /> {product.rating}{" "}
-          <span>
-            · {product.onRequest ? "Availability confirmed on request" : `${product.stock} in stock`}
-          </span>
+          {product.onRequest ? (
+            <><FaCheck /> <span>Availability and exact pattern confirmed on request</span></>
+          ) : (
+            <><FaCheck /> <span>{product.stock} listed · Confirm current availability</span></>
+          )}
         </div>
         <div className="price-row">
           <span className="rate-label"><small>CURRENT PRICE</small><strong>Ask for rate</strong></span>
@@ -170,7 +210,7 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
       <div className="diameter-grid">
         {sizes.map((diameter) => (
           <button key={diameter} className="diameter-card" onClick={() => setSelected({ diameter, profiles: TYRE_PROFILE_GUIDE[diameter] })} aria-label={`Ask about ${diameter} inch ${isRim ? "rims" : "tyres"}`}>
-            <span className="diameter-image"><img src={isRim ? "/Rim1.jpg" : "/tyre.jpg"} alt={`${diameter} inch ${isRim ? "alloy rim" : "tyre"}`} /><i>ASK US</i></span>
+            <span className="diameter-image"><img src={isRim ? "/Rim1.jpg" : "/tyre.jpg"} alt={`${diameter} inch ${isRim ? "alloy rim" : "tyre"}`} loading="lazy" decoding="async" /><i>ASK US</i></span>
             <span className="diameter-copy"><small>{isRim ? "ALLOY RIM" : "TYRE FITMENT"}</small><strong>{diameter}<sup>″</sup></strong>{!isRim && <em>Profiles {TYRE_PROFILE_GUIDE[diameter].join(" · ")}</em>}<b>Check current options <FaChevronRight /></b></span>
           </button>
         ))}
@@ -200,11 +240,43 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
 
 function Header({ count, openCart }) {
   const [open, setOpen] = useState(false);
+  const closeNavigation = () => {
+    setOpen(false);
+    document.querySelectorAll(".nav-mega[open]").forEach((menu) => {
+      menu.removeAttribute("open");
+    });
+  };
+  const keepOneMegaMenuOpen = (event) => {
+    if (!event.currentTarget.open) return;
+    document.querySelectorAll(".nav-mega[open]").forEach((menu) => {
+      if (menu !== event.currentTarget) menu.removeAttribute("open");
+    });
+  };
+  useEffect(() => {
+    const closeAllMenus = () => {
+      setOpen(false);
+      document.querySelectorAll(".nav-mega[open]").forEach((menu) => {
+        menu.removeAttribute("open");
+      });
+    };
+    const handleOutsideClick = (event) => {
+      if (!event.target.closest(".site-header")) closeAllMenus();
+    };
+    const handleEscape = (event) => {
+      if (event.key === "Escape") closeAllMenus();
+    };
+    document.addEventListener("click", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("click", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
   return (
     <>
       <div className="announcement">
         <span className="announcement-offer">
-          Free Lahore delivery on orders over Rs. 50,000
+          Lahore tyre shop · Nationwide tyre and rim enquiries
         </span>
         <div className="announcement-contacts">
           <a href="tel:+923214229594" aria-label="Call sales on 0321 4229594">
@@ -233,22 +305,58 @@ function Header({ count, openCart }) {
         </div>
       </div>
       <header className="site-header">
-        <Link className="logo" to="/">
-          <img src="/wheels-and-wheels-logo.png" alt="Wheels and Wheels" />
+        <Link className="logo" to="/" aria-label="Wheels & Wheels home">
+          <img src="/wheels-and-wheels-logo-600.png" alt="Wheels and Wheels" width="600" height="203" />
         </Link>
-        <nav className={open ? "nav-open" : ""}>
-          <Link to="/" onClick={() => setOpen(false)}>
-            Home
-          </Link>
-          <Link to="/shop" onClick={() => setOpen(false)}>
-            Shop
-          </Link>
-          <a href="/#services" onClick={() => setOpen(false)}>
-            Services
-          </a>
-          <Link to="/quote" onClick={() => setOpen(false)}>
-            Get a quote
-          </Link>
+        <nav className={open ? "nav-open" : ""} aria-label="Main navigation">
+          <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
+            <summary>Tyres</summary>
+            <div className="mega-panel">
+              <section>
+                <small>SHOP BY TYPE</small>
+                <Link to="/shop?category=Premium%20Brands" onClick={closeNavigation}>Premium tyres</Link>
+                <Link to="/shop?category=Japanese%20Brands" onClick={closeNavigation}>Japanese tyres</Link>
+                <Link to="/shop?category=Chinese%20Brands" onClick={closeNavigation}>Chinese tyres</Link>
+                <Link to="/shop?category=All%20Tyres" onClick={closeNavigation}>All 12–24 inch tyres</Link>
+              </section>
+              <section>
+                <small>TOP BRANDS</small>
+                <Link to="/brands/michelin" onClick={closeNavigation}>Michelin</Link>
+                <Link to="/brands/pirelli" onClick={closeNavigation}>Pirelli</Link>
+                <Link to="/brands/continental" onClick={closeNavigation}>Continental</Link>
+                <Link to="/brands/bridgestone" onClick={closeNavigation}>Bridgestone</Link>
+              </section>
+              <section>
+                <small>POPULAR SIZES</small>
+                <Link to="/tyre-sizes/195-65-r15" onClick={closeNavigation}>195/65 R15</Link>
+                <Link to="/tyre-sizes/205-55-r16" onClick={closeNavigation}>205/55 R16</Link>
+                <Link to="/tyre-sizes/185-65-r15" onClick={closeNavigation}>185/65 R15</Link>
+                <Link to="/guides/how-to-choose-the-right-tyre-size-pakistan" onClick={closeNavigation}>How to read tyre size</Link>
+              </section>
+            </div>
+          </details>
+          <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
+            <summary>Find by car</summary>
+            <div className="mega-panel vehicle-panel">
+              <section><small>SUZUKI</small><Link to="/vehicles/suzuki-alto" onClick={closeNavigation}>Alto</Link><Link to="/vehicles/suzuki-cultus" onClick={closeNavigation}>Cultus</Link><Link to="/vehicles/suzuki-wagon-r" onClick={closeNavigation}>Wagon R</Link></section>
+              <section><small>HONDA</small><Link to="/vehicles/honda-city" onClick={closeNavigation}>City</Link><Link to="/vehicles/honda-civic" onClick={closeNavigation}>Civic</Link><Link to="/vehicles/honda-br-v" onClick={closeNavigation}>BR-V</Link></section>
+              <section><small>TOYOTA</small><Link to="/vehicles/toyota-corolla" onClick={closeNavigation}>Corolla</Link><Link to="/vehicles/toyota-yaris" onClick={closeNavigation}>Yaris</Link><Link to="/vehicles/toyota-fortuner" onClick={closeNavigation}>Fortuner</Link></section>
+            </div>
+          </details>
+          <Link to="/shop?category=Rims" onClick={closeNavigation}>Rims</Link>
+          <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
+            <summary>Services</summary>
+            <div className="mega-panel compact-panel">
+              <section><small>WHEEL CARE</small><Link to="/services" onClick={closeNavigation}>All services</Link><Link to="/services/tyre-installation" onClick={closeNavigation}>Tyre installation</Link><Link to="/services/wheel-balancing" onClick={closeNavigation}>Wheel balancing</Link><Link to="/services/wheel-alignment" onClick={closeNavigation}>Wheel alignment</Link></section>
+            </div>
+          </details>
+          <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
+            <summary>Advice</summary>
+            <div className="mega-panel compact-panel">
+              <section><small>HELP & COMPANY</small><Link to="/guides" onClick={closeNavigation}>Tyre guides</Link><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link></section>
+            </div>
+          </details>
+          <Link className="nav-quote" to="/quote" onClick={closeNavigation}>Get current rate</Link>
         </nav>
         <div className="header-actions">
           <button
@@ -264,7 +372,7 @@ function Header({ count, openCart }) {
           </Link>
           <button className="cart-button" onClick={openCart} aria-label={`Open selection, ${count} items`}>
             <FaShoppingBag />
-            <span>Cart</span>
+            <span>Quote list</span>
             <b>{count}</b>
           </button>
         </div>
@@ -303,21 +411,26 @@ function Home({ add, products }) {
   });
   return (
     <main>
+      <SeoHead
+        title="Tyres and Alloy Rims in Lahore"
+        description="Find premium, Japanese and Chinese tyres plus 12–24 inch alloy rims in Lahore. Search by tyre size, vehicle or brand and ask Wheels & Wheels for current rates and verified fitment."
+        canonical="/"
+      />
       <section className="hero" id="home">
         <div className="hero-copy">
-          <div className="eyebrow light">PAKISTAN'S WHEEL SPECIALISTS</div>
+          <div className="eyebrow light">TYRES &amp; ALLOY RIMS IN LAHORE</div>
           <h1>
-            Own every
+            Find the right
             <br />
-            <em>turn.</em>
+            <em>tyres.</em>
           </h1>
           <p>
-            Premium tyres and statement rims, expertly matched to your car and
-            delivered nationwide.
+            Compare premium, Japanese and Chinese tyre options by size or car,
+            then ask our Lahore team for current rates and verified fitment.
           </p>
           <div className="hero-actions">
             <button className="primary" onClick={() => navigate("/shop")}>
-              Shop all products <FaChevronRight />
+              Find tyres by size <FaChevronRight />
             </button>
             <a
               className="secondary"
@@ -330,13 +443,13 @@ function Home({ add, products }) {
           </div>
           <div className="hero-proof">
             <span>
-              <b>15+</b> trusted brands
+              <b>12–24″</b> tyre and rim range
             </span>
             <span>
-              <b>20 years</b> fitment expertise
+              <b>Vehicle-first</b> fitment advice
             </span>
             <span>
-              <b>Nationwide</b> delivery
+              <b>Direct</b> call and WhatsApp support
             </span>
           </div>
         </div>
@@ -412,13 +525,13 @@ function Home({ add, products }) {
       <section className="trust-strip">
         <span>
           <FaTruck />
-          <b>Nationwide delivery</b>
-          <small>Safe, tracked shipping</small>
+          <b>Delivery available</b>
+          <small>Confirm timing with our team</small>
         </span>
         <span>
           <FaCheck />
-          <b>Genuine products</b>
-          <small>Official brand warranty</small>
+          <b>Clear product guidance</b>
+          <small>Brand, date and fitment checks</small>
         </span>
         <span>
           <FaStar />
@@ -430,6 +543,31 @@ function Home({ add, products }) {
           <b>Real support</b>
           <small>Talk to a wheel expert</small>
         </span>
+      </section>
+      <section className="home-growth section" aria-labelledby="home-find-title">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">THE FASTER WAY TO FIND A MATCH</div>
+            <h2 id="home-find-title">Start with what you know.</h2>
+            <p>Use a complete tyre size, your vehicle, or a preferred brand. We confirm the final fitment and current market availability before supply.</p>
+          </div>
+          <Link to="/tyres">Open tyre finder <FaChevronRight /></Link>
+        </div>
+        <div className="home-growth-grid">
+          <Link to="/tyre-sizes"><span>01</span><small>EXACT FITMENT</small><h3>Find tyres by size</h3><p>Start with a sidewall code such as 195/65 R15.</p><b>Browse popular sizes <FaChevronRight /></b></Link>
+          <Link to="/vehicles"><span>02</span><small>MAKE &amp; MODEL</small><h3>Find tyres by car</h3><p>Review common sizes, then verify year and variant.</p><b>Choose your vehicle <FaChevronRight /></b></Link>
+          <Link to="/brands"><span>03</span><small>COMPARE OPTIONS</small><h3>Find tyres by brand</h3><p>Explore premium, Japanese and Chinese choices.</p><b>Compare tyre brands <FaChevronRight /></b></Link>
+          <Link to="/guides"><span>04</span><small>BUY WITH CONTEXT</small><h3>Read practical guides</h3><p>Learn about size codes, tyre age, rims and road use.</p><b>Visit the advice hub <FaChevronRight /></b></Link>
+        </div>
+        <nav className="popular-seo-links" aria-label="Popular tyre searches">
+          <strong>Popular:</strong>
+          <Link to="/tyre-sizes/195-65-r15">195/65 R15</Link>
+          <Link to="/tyre-sizes/205-55-r16">205/55 R16</Link>
+          <Link to="/vehicles/honda-city">Honda City tyres</Link>
+          <Link to="/vehicles/toyota-corolla">Toyota Corolla tyres</Link>
+          <Link to="/brands/michelin">Michelin tyres</Link>
+          <Link to="/brands/bridgestone">Bridgestone tyres</Link>
+        </nav>
       </section>
       <section className="section featured">
         <div className="section-heading">
@@ -502,7 +640,7 @@ function Home({ add, products }) {
         <div className="service-grid">
           <Link className="service-card" to="/services/tyre-installation">
             <b>01</b>
-            <img src="/tyreinstallation.jpg" />
+            <img src="/tyreinstallation.jpg" alt="Professional tyre installation in Lahore" loading="lazy" decoding="async" />
             <h3>Tyre installation</h3>
             <p>Safe, careful fitting with new valves and exact pressure.</p>
             <strong>
@@ -511,7 +649,7 @@ function Home({ add, products }) {
           </Link>
           <Link className="service-card" to="/services/wheel-balancing">
             <b>02</b>
-            <img src="/wheelbalancing.jpg" />
+            <img src="/wheelbalancing.jpg" alt="Computerised wheel balancing service" loading="lazy" decoding="async" />
             <h3>Computerised balancing</h3>
             <p>Smoother driving and even tread wear at every speed.</p>
             <strong>
@@ -520,7 +658,7 @@ function Home({ add, products }) {
           </Link>
           <Link className="service-card" to="/services/wheel-alignment">
             <b>03</b>
-            <img src="/wheelalignment.jpeg" />
+            <img src="/wheelalignment.jpeg" alt="Wheel alignment service in Lahore" loading="lazy" decoding="async" />
             <h3>Wheel alignment</h3>
             <p>Precision geometry for better control and tyre life.</p>
             <strong>
@@ -552,6 +690,8 @@ function Home({ add, products }) {
 
 function Shop({ add, products, loading }) {
   const params = new URLSearchParams(window.location.search);
+  const requestedSize = params.get("size") || "";
+  const requestedParts = requestedSize.match(/(\d{3})\/(\d{2})\s*R(\d{2})/i);
   const requestedCategory = params.get("category");
   const initial =
     requestedCategory === "Tyres"
@@ -561,11 +701,11 @@ function Shop({ add, products, loading }) {
         : requestedCategory === "Japanese Tyres"
           ? "Japanese Brands"
           : requestedCategory || "All Tyres";
-  const [size, setSize] = useState(params.get("size") || "");
+  const [size, setSize] = useState(requestedSize);
   const [category, setCategory] = useState(initial);
-  const [rim, setRim] = useState("");
-  const [width, setWidth] = useState("");
-  const [profile, setProfile] = useState("");
+  const [rim, setRim] = useState(requestedParts?.[3] || "");
+  const [width, setWidth] = useState(requestedParts?.[1] || "");
+  const [profile, setProfile] = useState(requestedParts?.[2] || "");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("featured");
   const profileOptions = [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
@@ -632,7 +772,7 @@ function Shop({ add, products, loading }) {
         profile: Number(profile),
         rimDiameter: Number(rim),
         vehicle: "Exact fitment verified",
-        rating: 4.8,
+        rating: null,
         stock: 0,
         badge: `${badge} · On request`,
         description: `${brand} options for ${requestedSize}, subject to current market availability and vehicle fitment confirmation.`,
@@ -656,7 +796,7 @@ function Shop({ add, products, loading }) {
       <div className="shop-banner">
         <div className="eyebrow light">THE COLLECTION</div>
         <h1>Find your next set.</h1>
-        <p>Genuine tyres and rims, selected for Pakistan's roads.</p>
+        <p>Tyre and rim options for Pakistan's roads, confirmed before supply.</p>
       </div>
       <section className="shop-layout">
         <aside>
@@ -879,7 +1019,7 @@ function Cart({ open, close, cart, change }) {
         <div className="cart-head">
           <div>
             <small>YOUR SELECTION</small>
-            <h2>Shopping cart</h2>
+            <h2>Quote list</h2>
           </div>
           <button onClick={close}>
             <FaTimes />
@@ -888,10 +1028,10 @@ function Cart({ open, close, cart, change }) {
         {cart.length === 0 ? (
           <div className="cart-empty">
             <FaShoppingBag />
-            <h3>Your cart is empty</h3>
-            <p>Explore our collection and find the perfect setup.</p>
+            <h3>Your quote list is empty</h3>
+            <p>Save tyre and rim options, then ask us for current rates.</p>
             <Link to="/shop" onClick={close}>
-              Start shopping
+              Find tyres and rims
             </Link>
           </div>
         ) : (
@@ -899,7 +1039,7 @@ function Cart({ open, close, cart, change }) {
             <div className="cart-items">
               {cart.map((i) => (
                 <article key={i._id}>
-                  <img src={i.image} />
+                  <img src={i.image} alt={i.title} loading="lazy" decoding="async" />
                   <div>
                     <small>{i.brand}</small>
                     <h3>{i.title}</h3>
@@ -963,9 +1103,10 @@ function ProductDetail({ products, add }) {
   const [remote, setRemote] = useState(null);
   const [zoom, setZoom] = useState(false);
   const [scale, setScale] = useState(1.5);
-  const product = products.find((p) => p._id === id) || remote;
+  const localProduct = products.find((p) => p._id === id || p.slug === id);
+  const product = localProduct || remote;
   useEffect(() => {
-    if (!products.find((p) => p._id === id))
+    if (!products.find((p) => p._id === id || p.slug === id))
       api(`/products/${id}`)
         .then(setRemote)
         .catch(() => setRemote(false));
@@ -977,9 +1118,16 @@ function ProductDetail({ products, add }) {
   }, []);
   if (product === false)
     return (
-      <main className="detail-page">
-        <div className="empty">Product not found.</div>
-      </main>
+      <>
+        <SeoHead
+          title="Product Not Found"
+          description="The requested Wheels & Wheels product could not be found."
+          noIndex
+        />
+        <main className="detail-page">
+          <div className="empty">Product not found.</div>
+        </main>
+      </>
     );
   if (!product)
     return (
@@ -989,6 +1137,12 @@ function ProductDetail({ products, add }) {
     );
   return (
     <main className="detail-page">
+      <SeoHead
+        title={`${product.title} ${product.size}`}
+        description={`${product.description} Ask Wheels & Wheels Lahore for the current rate, availability and verified fitment.`}
+        canonical={`/product/${product.slug || product._id}`}
+        image={product.image}
+      />
       <div className="breadcrumbs">
         <Link to="/">Home</Link> / <Link to="/shop">Shop</Link> /{" "}
         {product.title}
@@ -999,7 +1153,7 @@ function ProductDetail({ products, add }) {
           onClick={() => setZoom(true)}
           aria-label="Open product image zoom"
         >
-          <img src={product.image} alt={product.title} />
+          <img src={product.image} alt={product.title} decoding="async" />
           {product.badge && <span className="pill">{product.badge}</span>}
           <span className="zoom-hint">
             <FaSearch /> Click to zoom
@@ -1011,7 +1165,7 @@ function ProductDetail({ products, add }) {
           </div>
           <h1>{product.title}</h1>
           <div className="rating">
-            <FaStar /> {product.rating} <span>· Genuine product</span>
+            <FaCheck /> Specification and current stock confirmed before supply
           </div>
           <div className="detail-price">
             <small>CURRENT RATE</small>
@@ -1031,7 +1185,9 @@ function ProductDetail({ products, add }) {
             <span>
               <small>AVAILABILITY</small>
               <b>
-                {product.stock > 0
+                {product.onRequest
+                  ? "Confirm current availability"
+                  : product.stock > 0
                   ? `${product.stock} in stock`
                   : "Out of stock"}
               </b>
@@ -1039,17 +1195,17 @@ function ProductDetail({ products, add }) {
           </div>
           <button
             className="detail-add"
-            disabled={!product.stock}
+            disabled={!product.stock && !product.onRequest}
             onClick={() => add(product)}
           >
-            <FaShoppingBag /> {product.stock ? "Save to selection" : "Out of stock"}
+            <FaShoppingBag /> {product.onRequest ? "Ask about this option" : product.stock ? "Save to selection" : "Out of stock"}
           </button>
           <div className="detail-benefits">
             <span>
-              <FaCheck /> Genuine brand warranty
+              <FaCheck /> Brand, date code and warranty terms checked
             </span>
             <span>
-              <FaTruck /> Nationwide tracked delivery
+              <FaTruck /> Delivery options confirmed with your quotation
             </span>
             <span>
               <FaWhatsapp /> Expert fitment confirmation
@@ -1089,56 +1245,79 @@ function ProductDetail({ products, add }) {
   );
 }
 
-function SalesInsights({ summary }) {
-  const sales = summary.dailySales || [];
-  const max = Math.max(1, ...sales.map((d) => d.sales));
+function LeadInsights({ summary }) {
   const statusMap = Object.fromEntries(
-    (summary.statuses || []).map((s) => [s._id, s.count]),
+    (summary.inquiryStatuses || []).map((status) => [status._id, status.count]),
   );
+  const stages = [
+    { key: "new", label: "New", color: "#e7a624", dot: "pending" },
+    { key: "contacted", label: "Contacted", color: "#2788d8", dot: "confirmed" },
+    { key: "quoted", label: "Quoted", color: "#7a59c4", dot: "shipped" },
+    { key: "won", label: "Won", color: "#2a9c63", dot: "completed" },
+    { key: "closed", label: "Closed", color: "#d51f27", dot: "cancelled" },
+  ];
+  const max = Math.max(1, ...stages.map((stage) => statusMap[stage.key] || 0));
+  const total = summary.inquiries || 0;
+  const followUps = [
+    {
+      key: "new",
+      title: "New RFQs need first contact",
+      help: "Call or WhatsApp the customer, then mark the lead Contacted.",
+    },
+    {
+      key: "contacted",
+      title: "Contacted leads need a quotation",
+      help: "Confirm fitment, current stock and rate before preparing the quote.",
+    },
+    {
+      key: "quoted",
+      title: "Sent quotes need follow-up",
+      help: "Record the result as Won or Closed when the customer decides.",
+    },
+  ];
   return (
     <section className="insights">
       <div className="sales-panel">
         <div className="panel-title">
           <div>
-            <small>LAST 30 DAYS</small>
-            <h2>Sales performance</h2>
+            <small>ALL WEBSITE RATE REQUESTS</small>
+            <h2>RFQ lead funnel</h2>
           </div>
-          <b>{formatPrice(sales.reduce((sum, d) => sum + d.sales, 0))}</b>
+          <b>{total} total</b>
         </div>
         <div className="sales-chart">
-          {sales.length ? (
-            sales.map((d) => (
-              <div
-                className="bar-wrap"
-                key={d._id}
-                title={`${d._id}: ${formatPrice(d.sales)} · ${d.orders} orders`}
-              >
-                <span
-                  style={{ height: `${Math.max(5, (d.sales / max) * 100)}%` }}
-                ></span>
-                <small>
-                  {new Date(`${d._id}T00:00:00`).toLocaleDateString(undefined, {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </small>
-              </div>
-            ))
+          {total ? (
+            stages.map((stage) => {
+              const count = statusMap[stage.key] || 0;
+              return (
+                <div
+                  className="bar-wrap"
+                  key={stage.key}
+                  title={`${stage.label}: ${count} RFQs`}
+                >
+                  <span
+                    style={{
+                      height: `${Math.max(5, (count / max) * 100)}%`,
+                      background: stage.color,
+                    }}
+                  />
+                  <small>{stage.label}</small>
+                </div>
+              );
+            })
           ) : (
             <div className="no-data">
-              Sales will appear after orders are placed.
+              RFQ activity will appear after customers send rate requests.
             </div>
           )}
         </div>
         <div className="status-strip">
-          {["pending", "confirmed", "shipped", "completed", "cancelled"].map(
-            (s) => (
-              <span key={s}>
-                <i className={s}></i>
-                <b>{statusMap[s] || 0}</b> {s}
-              </span>
-            ),
-          )}
+          {stages.map((stage) => (
+            <span key={stage.key}>
+              <i className={stage.dot}></i>
+              <b>{statusMap[stage.key] || 0}</b> {stage.label}
+            </span>
+          ))}
         </div>
       </div>
       <div className="stock-panel">
@@ -1178,23 +1357,20 @@ function SalesInsights({ summary }) {
       <div className="seller-panel">
         <div className="panel-title">
           <div>
-            <small>BY UNITS SOLD</small>
-            <h2>Best sellers</h2>
+            <small>PRIORITY QUEUE</small>
+            <h2>Lead follow-up</h2>
           </div>
         </div>
-        {(summary.bestSellers || []).map((p, i) => (
-          <div className="seller-row" key={p._id}>
-            <b>0{i + 1}</b>
+        {followUps.map((item, index) => (
+          <div className="seller-row" key={item.key}>
+            <b>0{index + 1}</b>
             <span>
-              {p.title}
-              <small>{formatPrice(p.sales)} sales</small>
+              {item.title}
+              <small>{item.help}</small>
             </span>
-            <strong>{p.units} sold</strong>
+            <strong>{statusMap[item.key] || 0}</strong>
           </div>
         ))}
-        {!summary.bestSellers?.length && (
-          <div className="no-data">Best sellers will appear here.</div>
-        )}
       </div>
     </section>
   );
@@ -1572,6 +1748,7 @@ function QuoteRequest() {
     tyreSize: quoteParams.get("tyreSize") || "",
     budget: "",
     message: quoteParams.get("message") || "",
+    website: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1615,6 +1792,11 @@ function QuoteRequest() {
     );
   return (
     <main className="quote-page">
+      <SeoHead
+        title="Request Current Tyre and Rim Rates in Lahore"
+        description="Send your vehicle, tyre size and requirements to Wheels & Wheels Lahore for current tyre or alloy-rim options and verified fitment advice."
+        canonical="/quote"
+      />
       <section className="quote-intro">
         <div className="eyebrow light">PERSONAL FITMENT ADVICE</div>
         <h1>Request a quote.</h1>
@@ -1635,6 +1817,15 @@ function QuoteRequest() {
         </div>
       </section>
       <form className="quote-form" onSubmit={submit}>
+        <label className="form-honeypot" aria-hidden="true">
+          Website
+          <input
+            tabIndex="-1"
+            autoComplete="off"
+            value={form.website}
+            onChange={(e) => setForm({ ...form, website: e.target.value })}
+          />
+        </label>
         <div className="eyebrow">YOUR REQUIREMENTS</div>
         <h2>Let’s find the right setup.</h2>
         <div className="form-grid">
@@ -1811,6 +2002,12 @@ function InquiryQuoteEditor({ item, onSaved }) {
   </div></details>;
 }
 
+function mergeUniqueInquiries(current, incoming) {
+  const byId = new Map(current.map((item) => [item._id, item]));
+  incoming.forEach((item) => byId.set(item._id, item));
+  return [...byId.values()];
+}
+
 function Admin() {
   const [token, setToken] = useState(localStorage.getItem("ww-admin-token"));
   const [login, setLogin] = useState({
@@ -1822,7 +2019,10 @@ function Admin() {
   const [products, setProducts] = useState([]);
   const [summary, setSummary] = useState({});
   const [error, setError] = useState("");
-  const [tab, setTab] = useState("orders");
+  const [tab, setTab] = useState("inquiries");
+  const [inquiryPage, setInquiryPage] = useState(1);
+  const [inquiriesHaveMore, setInquiriesHaveMore] = useState(false);
+  const [loadingMoreInquiries, setLoadingMoreInquiries] = useState(false);
   const empty = {
     title: "",
     slug: "",
@@ -1843,14 +2043,33 @@ function Admin() {
         api("/orders"),
         api("/products"),
         api("/admin/summary"),
-        api("/inquiries"),
+        apiWithMeta(`/inquiries?page=1&limit=${RFQ_PAGE_SIZE}`),
       ]);
       setOrders(o);
       setProducts(p);
       setSummary(s);
-      setInquiries(inquiriesResult);
+      setInquiries(mergeUniqueInquiries([], inquiriesResult.data));
+      setInquiryPage(inquiriesResult.meta.page);
+      setInquiriesHaveMore(inquiriesResult.meta.hasMore);
     } catch (e) {
       setError(e.message);
+    }
+  };
+  const loadMoreInquiries = async () => {
+    if (loadingMoreInquiries || !inquiriesHaveMore) return;
+    setLoadingMoreInquiries(true);
+    setError("");
+    try {
+      const result = await apiWithMeta(
+        `/inquiries?page=${inquiryPage + 1}&limit=${RFQ_PAGE_SIZE}`,
+      );
+      setInquiries((current) => mergeUniqueInquiries(current, result.data));
+      setInquiryPage(result.meta.page);
+      setInquiriesHaveMore(result.meta.hasMore);
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoadingMoreInquiries(false);
     }
   };
   useEffect(() => {
@@ -1925,6 +2144,12 @@ function Admin() {
     await api(`/products/${id}`, { method: "DELETE" });
     load();
   };
+  const inquiryStatusMap = Object.fromEntries(
+    (summary.inquiryStatuses || []).map((statusItem) => [
+      statusItem._id,
+      statusItem.count,
+    ]),
+  );
   if (!token)
     return (
       <main className="admin-login">
@@ -1957,7 +2182,7 @@ function Admin() {
       <div className="admin-top">
         <div>
           <div className="eyebrow">WHEELS &amp; WHEELS</div>
-          <h1>Store dashboard</h1>
+          <h1>Lead dashboard</h1>
         </div>
         <button
           onClick={() => {
@@ -1970,32 +2195,32 @@ function Admin() {
       </div>
       <div className="stats">
         <article>
-          <small>New RFQs</small>
-          <b>{summary.newInquiries || 0}</b>
+          <small>Total RFQs</small>
+          <b>{summary.inquiries || 0}</b>
         </article>
         <article>
-          <small>Total orders</small>
-          <b>{summary.orders || 0}</b>
+          <small>New leads</small>
+          <b>{inquiryStatusMap.new ?? summary.newInquiries ?? 0}</b>
         </article>
         <article>
-          <small>Pending</small>
-          <b>{summary.pending || 0}</b>
+          <small>Quoted leads</small>
+          <b>{inquiryStatusMap.quoted || 0}</b>
         </article>
         <article>
-          <small>Revenue</small>
-          <b>{summary.revenue ? formatPrice(summary.revenue) : "Rs. 0"}</b>
+          <small>Won RFQs</small>
+          <b>{inquiryStatusMap.won || 0}</b>
         </article>
       </div>
       <details className="admin-guide">
-        <summary>How to manage orders, payments and quotations</summary>
+        <summary>How to manage the RFQ lead funnel</summary>
         <div>
-          <article><b>Orders</b><p>Open Orders. Verify the customer and items, then change Pending to Confirmed only after stock, fitment and payment are checked. Use Shipped when dispatched and Completed after delivery.</p></article>
-          <article><b>Customer contact</b><p>Online checkout and payment are disabled. Customers send selected products through official WhatsApp or call 0321 4229594 so you can personally confirm current rate, fitment, stock and delivery.</p></article>
-          <article><b>Rate requests</b><p>Open RFQs, choose Prepare quotation, enter the amount, exact products and availability, then write your response. Save Draft keeps it private. Save &amp; Send Quote changes it to Quoted and emails the customer when an email is available.</p></article>
-          <article><b>Customer tracking</b><p>Customers use the full order/RFQ reference plus the same phone number they submitted. Update statuses promptly because the public pages read these values directly from the database.</p></article>
+          <article><b>New</b><p>Open the RFQ, contact the customer by phone or official WhatsApp, and change the status to Contacted after the first response.</p></article>
+          <article><b>Contacted</b><p>Confirm the vehicle fitment, requested products, current availability and rate before preparing a quotation.</p></article>
+          <article><b>Quoted</b><p>Use Prepare quotation to save the exact items, amount and reply. Save &amp; Send Quote emails the customer when an email address is available.</p></article>
+          <article><b>Won or closed</b><p>Mark successful leads Won and unsuccessful or inactive requests Closed so the funnel remains useful. Online checkout and payment are currently disabled; legacy orders are retained only for earlier records.</p></article>
         </div>
       </details>
-      <SalesInsights summary={summary} />
+      <LeadInsights summary={summary} />
       <div className="admin-tabs">
         <button
           className={tab === "inquiries" ? "active" : ""}
@@ -2007,7 +2232,7 @@ function Admin() {
           className={tab === "orders" ? "active" : ""}
           onClick={() => setTab("orders")}
         >
-          Orders
+          Legacy orders
         </button>
         <button
           className={tab === "products" ? "active" : ""}
@@ -2085,6 +2310,27 @@ function Admin() {
           ))}
           {!inquiries.length && (
             <div className="no-data">No quote requests yet.</div>
+          )}
+          {!!inquiries.length && (
+            <div className="admin-pagination no-data">
+              <p id="rfq-pagination-status" aria-live="polite">
+                Showing {inquiries.length} of {summary.inquiries || inquiries.length} RFQs.
+              </p>
+              {inquiriesHaveMore ? (
+                <button
+                  className="place-order"
+                  type="button"
+                  onClick={loadMoreInquiries}
+                  disabled={loadingMoreInquiries}
+                  aria-busy={loadingMoreInquiries}
+                  aria-describedby="rfq-pagination-status"
+                >
+                  {loadingMoreInquiries ? "Loading more RFQs…" : "Load more RFQs"}
+                </button>
+              ) : (
+                <span>All RFQs are loaded.</span>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -2232,8 +2478,8 @@ function Footer() {
   return (
     <footer id="footer">
       <div className="footer-top">
-        <Link className="logo footer-logo" to="/">
-          <img src="/wheels-and-wheels-logo.png" alt="Wheels and Wheels" />
+        <Link className="logo footer-logo" to="/" aria-label="Wheels & Wheels home">
+          <img src="/wheels-and-wheels-logo-600.png" alt="Wheels and Wheels" width="600" height="203" loading="lazy" decoding="async" />
         </Link>
         <p>
           Premium wheels, honest advice and precise fitment — from Lahore to all
@@ -2252,6 +2498,7 @@ function Footer() {
             href="https://www.instagram.com/wheelsandwheels_/"
             target="_blank"
             rel="noreferrer"
+            aria-label="Wheels and Wheels on Instagram"
           >
             <FaInstagram />
           </a>
@@ -2259,6 +2506,7 @@ function Footer() {
             href={`https://wa.me/${WHATSAPP}`}
             target="_blank"
             rel="noreferrer"
+            aria-label="Message Wheels and Wheels on WhatsApp"
           >
             <FaWhatsapp />
           </a>
@@ -2290,39 +2538,95 @@ function Footer() {
             Sunday · Closed
           </p>
         </div>
+        <div>
+          <h4>Find tyres</h4>
+          <p className="footer-links">
+            <Link to="/tyre-sizes">By tyre size</Link>
+            <Link to="/vehicles">By vehicle</Link>
+            <Link to="/brands">By brand</Link>
+          </p>
+        </div>
+        <div>
+          <h4>Helpful information</h4>
+          <p className="footer-links">
+            <Link to="/guides">Tyre guides</Link>
+            <Link to="/services">Wheel services</Link>
+            <Link to="/about">About us</Link>
+            <Link to="/lahore-tyre-shop">Lahore tyre shop</Link>
+            <Link to="/contact">Contact & location</Link>
+            <Link to="/faq">Questions & answers</Link>
+            <Link to="/quote">Ask current rate</Link>
+          </p>
+        </div>
       </div>
       <div className="copyright">
         © {new Date().getFullYear()} Wheels &amp; Wheels{" "}
-        <span>Genuine products. Professional fitment.</span>
+        <span>Current rates. Fitment checked before supply.</span>
       </div>
     </footer>
   );
 }
 
+function NotFound() {
+  return (
+    <main className="not-found-page">
+      <SeoHead
+        title="Page Not Found"
+        description="The requested Wheels & Wheels page could not be found."
+        noIndex
+      />
+      <section>
+        <p className="eyebrow">404 · PAGE NOT FOUND</p>
+        <h1>This road ends here.</h1>
+        <p>
+          The page may have moved or the address may be incorrect. Choose a
+          useful route below.
+        </p>
+        <div>
+          <Link className="primary" to="/">Return home</Link>
+          <Link className="secondary" to="/shop">Browse tyres and rims</Link>
+          <Link className="secondary" to="/contact">Contact us</Link>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function AppShell() {
+  const { pathname } = useLocation();
   const [cart, setCart] = useState(() =>
     JSON.parse(localStorage.getItem("ww-cart") || "[]"),
   );
   const [open, setOpen] = useState(false);
   const [products, setProducts] = useState(PRODUCTS);
   const [loading, setLoading] = useState(true);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
   useEffect(() => {
+    const needsCatalog =
+      pathname === "/" ||
+      pathname.startsWith("/shop") ||
+      pathname.startsWith("/product/");
+    if (!needsCatalog || catalogLoaded) return;
     api("/products")
       .then(setProducts)
       .catch(() => setProducts(PRODUCTS))
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        setLoading(false);
+        setCatalogLoaded(true);
+      });
+  }, [catalogLoaded, pathname]);
   useEffect(
     () => localStorage.setItem("ww-cart", JSON.stringify(cart)),
     [cart],
   );
   const add = (p) => {
-    if (p.stock < 1) return;
+    if (!p.onRequest && p.stock < 1) return;
+    const maximum = p.onRequest ? 20 : p.stock;
     setCart((c) => {
       const hit = c.find((i) => i._id === p._id);
       return hit
         ? c.map((i) =>
-            i._id === p._id ? { ...i, qty: Math.min(i.qty + 1, p.stock) } : i,
+            i._id === p._id ? { ...i, qty: Math.min(i.qty + 1, maximum) } : i,
           )
         : [...c, { ...p, qty: 1 }];
     });
@@ -2332,12 +2636,17 @@ function AppShell() {
     setCart((c) =>
       c
         .map((i) =>
-          i._id === id ? { ...i, qty: Math.min(i.stock, i.qty + n) } : i,
+          i._id === id
+            ? {
+                ...i,
+                qty: Math.min(i.onRequest ? 20 : i.stock, i.qty + n),
+              }
+            : i,
         )
         .filter((i) => i.qty > 0),
     );
   const clear = () => setCart([]);
-  const isAdmin = window.location.pathname.startsWith("/admin");
+  const isAdmin = pathname.startsWith("/admin");
   return (
     <>
       <RouteEffects />
@@ -2347,8 +2656,23 @@ function AppShell() {
           openCart={() => setOpen(true)}
         />
       )}
+      <Suspense fallback={<main className="route-loading" role="status">Loading tyre guide…</main>}>
       <Routes>
         <Route path="/" element={<Home add={add} products={products} />} />
+        <Route path="/tyres" element={<DiscoveryHub />} />
+        <Route path="/brands" element={<BrandsHub />} />
+        <Route path="/brands/:slug" element={<BrandLandingPage />} />
+        <Route path="/vehicles" element={<VehiclesHub />} />
+        <Route path="/vehicles/:slug" element={<VehicleLandingPage />} />
+        <Route path="/tyre-sizes" element={<TyreSizesHub />} />
+        <Route path="/tyre-sizes/:slug" element={<SizeLandingPage />} />
+        <Route path="/guides" element={<GuidesHub />} />
+        <Route path="/guides/:slug" element={<GuideArticle />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/lahore-tyre-shop" element={<LahoreTyreShopPage />} />
+        <Route path="/faq" element={<FAQPage />} />
         <Route
           path="/shop"
           element={<Shop add={add} products={products} loading={loading} />}
@@ -2382,8 +2706,9 @@ function AppShell() {
         />
         <Route path="/services/:slug" element={<ServiceDetail />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
       {!isAdmin && (
         <>
           <Cart
