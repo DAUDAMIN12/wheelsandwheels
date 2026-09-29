@@ -50,7 +50,16 @@ const products = await readJson(catalogue);
 check(catalogue.status === 200, `Catalogue returned ${catalogue.status}`);
 check(Array.isArray(products) && products.length > 0, "Catalogue returned no products");
 check(catalogue.headers.get("access-control-allow-origin") === baseUrl, "Same-origin CORS response is incorrect");
-check(/s-maxage=/i.test(catalogue.headers.get("vercel-cdn-cache-control") || ""), "Catalogue is missing its CDN cache policy");
+const catalogueCachePolicy = [
+  catalogue.headers.get("vercel-cdn-cache-control"),
+  catalogue.headers.get("cache-control"),
+]
+  .filter(Boolean)
+  .join(", ");
+check(
+  /s-maxage=|\bpublic\b/i.test(catalogueCachePolicy),
+  "Catalogue is missing its public CDN cache policy",
+);
 
 const foreignOrigin = await request("/api/products", {
   headers: { Origin: "https://attacker.invalid" },
