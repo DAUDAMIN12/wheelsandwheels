@@ -70,14 +70,14 @@ export default function GuidesHub() {
   const [featured, ...remaining] = guides;
   const breadcrumbs = [
     { name: "Home", path: "/" },
-    { name: "Tyre guides", path: "/guides" },
+    { name: "Blog and tyre guides", path: "/guides" },
   ];
 
   return (
     <main className="growth-page guides-hub">
       <SeoHead
-        title="Tyre Guides for Pakistan"
-        description="Straightforward tyre size, fitment, maintenance and buying guides from Wheels & Wheels Lahore. Learn first, then ask for a current rate."
+        title="Tyre Blog and Guides for Pakistan"
+        description="Read practical tyre size, fitment, maintenance and buying articles from Wheels & Wheels Lahore, then request a current rate for your exact requirement."
         canonical="/guides"
         breadcrumbs={breadcrumbs}
       />
@@ -85,14 +85,14 @@ export default function GuidesHub() {
       <nav className="growth-breadcrumbs breadcrumbs" aria-label="Breadcrumb">
         <ol>
           <li><Link to="/">Home</Link></li>
-          <li><span aria-current="page">Tyre guides</span></li>
+          <li><span aria-current="page">Blog and tyre guides</span></li>
         </ol>
       </nav>
 
       <header className="growth-hero guides-hero">
         <div className="growth-hero-copy">
           <p className="eyebrow">HONEST ADVICE FOR PAKISTAN'S ROADS</p>
-          <h1>Tyre and wheel guides.</h1>
+          <h1>Tyre advice and blog.</h1>
           <p className="growth-lede">
             Understand sizes, compare options and spot common problems before you spend.
             Our guides support your decision; final fitment is always checked against your vehicle.
@@ -119,7 +119,7 @@ export default function GuidesHub() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">PRACTICAL ANSWERS</p>
-              <h2 id="latest-guides-title">Latest tyre guides</h2>
+              <h2 id="latest-guides-title">Latest tyre articles</h2>
             </div>
           </div>
           <GuideCard guide={featured} featured />

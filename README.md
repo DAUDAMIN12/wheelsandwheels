@@ -47,9 +47,10 @@ Open `http://localhost:5173`. The private dashboard is at `http://localhost:5173
 
 1. A visitor selects a complete tyre size, such as `195/65 R15`, or browses by brand/vehicle.
 2. Product and size actions add the requirement to a quote list or open the rate-request form.
-3. Submitting the form stores the RFQ in MongoDB and attempts to email the sales inbox.
-4. The administrator signs in at `/admin`, opens **RFQs**, updates the lead status, adds products/rate/notes, and can email a quotation when the customer supplied an email address.
-5. The sales team closes the deal by phone or official WhatsApp. The website does not collect money.
+3. Submitting the form stores the RFQ in MongoDB, attempts a sales-inbox alert, and sends a receipt to the customer when an email address was supplied.
+4. The confirmation screen reports customer-email delivery separately from database storage. The administrator can see the shop-alert, customer-receipt and quotation-email states for each RFQ and retry failed receipt emails.
+5. The administrator signs in at `/admin`, opens **RFQs**, updates the lead status, adds products/rate/notes, and can email a quotation when the customer supplied an email address.
+6. The sales team closes the deal by phone or official WhatsApp. The website does not collect money.
 
 If email delivery is unavailable, the RFQ is still stored and visible in the dashboard. Check the dashboard regularly; email is an alert, not the source of truth.
 
@@ -61,6 +62,7 @@ If email delivery is unavailable, the RFQ is still stored and visible in the das
 - Build and generate crawlable SEO pages: `npm run build`
 - Validate the generated sitemap, metadata, JSON-LD and no-index pages: `npm run validate:build`
 - Test a running production server: `npm run test:smoke -- http://127.0.0.1:5000`
+- Test SMTP acceptance and email HTML escaping without contacting a real provider: `npm run test:email`
 - Verify SMTP credentials without sending an email: `npm run email:verify`
 - Lint the codebase: `npm run lint`
 
@@ -82,7 +84,9 @@ No default password is published in this repository. The values in `.env` or the
 7. Deploy or redeploy. Vercel runs `npm run build`, which creates the static SEO routes, sitemap, robots file, 404 page, and frontend assets.
 8. After attaching the final domain, update `VITE_SITE_URL` and `CLIENT_URL`, redeploy, then submit `/sitemap.xml` in Google Search Console.
 
-For Gmail notifications, enable two-step verification and use a Gmail App Password as `SMTP_PASS`; do not use the normal Gmail password. Verify a real RFQ after deployment and confirm both the dashboard record and notification email.
+For Gmail notifications, enable two-step verification and use a Gmail App Password as `SMTP_PASS`; do not use the normal Gmail password. `SMTP_USER`, `SMTP_PASS`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, and `NOTIFICATION_EMAIL` must all be available to the Vercel Production environment. Changing an environment variable does not update an existing deployment, so redeploy afterward.
+
+After deployment, submit one clearly labelled test RFQ with an email address and verify all three results: the record appears at `/admin`, the sales inbox receives the alert, and the customer inbox receives the confirmation. Check Spam/Junk as well. The admin dashboard shows non-secret delivery states and offers a retry action when receipt delivery fails. An SMTP `sent` state means the mail server accepted the message; final inbox placement still depends on the receiving provider and the sender domain's SPF, DKIM and DMARC configuration.
 
 ## Production notes
 

@@ -154,7 +154,7 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
       : guide.author || "Wheels & Wheels team";
   const breadcrumbs = [
     { name: "Home", path: "/" },
-    { name: "Tyre guides", path: "/guides" },
+    { name: "Blog and tyre guides", path: "/guides" },
     { name: guide.title, path },
   ];
   const question = `Hi Wheels & Wheels, I read “${guide.title}” and need help with my vehicle. My current tyre size is: `;
@@ -182,7 +182,7 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
       <nav className="growth-breadcrumbs breadcrumbs" aria-label="Breadcrumb">
         <ol>
           <li><Link to="/">Home</Link></li>
-          <li><Link to="/guides">Tyre guides</Link></li>
+          <li><Link to="/guides">Blog and tyre guides</Link></li>
           <li><span aria-current="page">{guide.title}</span></li>
         </ol>
       </nav>

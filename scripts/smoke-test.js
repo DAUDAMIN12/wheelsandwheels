@@ -113,6 +113,8 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     check(summary.status === 200, `Authorized admin summary returned ${summary.status}`);
     check(typeof summaryBody.inquiries === "number", "Admin summary is missing RFQ totals");
     check(Array.isArray(summaryBody.inquiryStatuses), "Admin summary is missing the RFQ funnel");
+    check(typeof summaryBody.emailConfigured === "boolean", "Admin summary is missing email configuration health");
+    check(typeof summaryBody.emailDeliveryIssues === "number", "Admin summary is missing email delivery issue totals");
   }
 }
 

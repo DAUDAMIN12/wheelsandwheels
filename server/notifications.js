@@ -5,8 +5,16 @@ const recipient = () =>
 
 let cachedTransport;
 
+export const emailDeliveryConfigured = () =>
+  Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+
+export const closeNotificationTransport = () => {
+  cachedTransport?.close();
+  cachedTransport = undefined;
+};
+
 function transport() {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  if (!emailDeliveryConfigured()) return null;
   if (cachedTransport) return cachedTransport;
   cachedTransport = nodemailer.createTransport({
     host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -37,9 +45,7 @@ const safeHeader = (value) => String(value || "").replace(/[\r\n]+/g, " ").trim(
 export async function sendNotification({ subject, heading, fields, replyTo, to }) {
   const mailer = transport();
   if (!mailer) {
-    console.warn(
-      `Email notification skipped (SMTP not configured): ${subject}`,
-    );
+    console.warn("Email notification skipped: SMTP is not configured");
     return false;
   }
   const rows = fields
@@ -48,7 +54,7 @@ export async function sendNotification({ subject, heading, fields, replyTo, to }
         `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#777">${escapeHtml(label)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:700">${escapeHtml(value)}</td></tr>`,
     )
     .join("");
-  await mailer.sendMail({
+  const delivery = await mailer.sendMail({
     from: `Wheels & Wheels Website <${process.env.SMTP_USER}>`,
     to: safeHeader(to || recipient()),
     replyTo: replyTo ? safeHeader(replyTo) : undefined,
@@ -56,5 +62,7 @@ export async function sendNotification({ subject, heading, fields, replyTo, to }
     text: `${heading}\n\n${fields.map(([key, value]) => `${key}: ${value || "—"}`).join("\n")}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto"><div style="background:#111;color:#fff;padding:24px"><h1 style="margin:0">${escapeHtml(heading)}</h1></div><table style="width:100%;border-collapse:collapse">${rows}</table><p style="color:#777;font-size:12px;padding:18px 8px">${to ? "Wheels & Wheels · Official WhatsApp +92 339 0045836" : "Open the Wheels & Wheels admin dashboard to manage this record."}</p></div>`,
   });
-  return true;
+  const accepted = Array.isArray(delivery.accepted) ? delivery.accepted : [];
+  const rejected = Array.isArray(delivery.rejected) ? delivery.rejected : [];
+  return accepted.length > 0 && rejected.length === 0;
 }

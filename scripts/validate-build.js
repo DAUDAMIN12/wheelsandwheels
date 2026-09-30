@@ -33,6 +33,20 @@ assert(/Sitemap:\s*https?:\/\/[^\s]+\/sitemap\.xml/i.test(robots), "robots.txt i
 const seenTitles = new Map();
 const seenCanonicals = new Map();
 
+const internalPageLinks = (html) => {
+  const links = [...html.matchAll(/<a\b[^>]*\bhref=(?:"([^"]+)"|'([^']+)')[^>]*>/gi)]
+    .map((match) => match[1] || match[2])
+    .filter((href) => href.startsWith("/") && !href.startsWith("//"))
+    .map((href) => href.split(/[?#]/, 1)[0] || "/")
+    .filter(
+      (href) =>
+        !href.startsWith("/api/") &&
+        !href.startsWith("/assets/") &&
+        !/\.(?:avif|css|gif|ico|jpe?g|js|json|png|svg|webmanifest|webp|xml)$/i.test(href),
+    );
+  return new Set(links);
+};
+
 for (const location of locations) {
   const url = new URL(location);
   const relative = decodeURIComponent(url.pathname).replace(/^\/+|\/+$/g, "");
@@ -52,6 +66,20 @@ for (const location of locations) {
   assert(/<h1[\s>]/i.test(html), `Missing visible H1 on ${url.pathname}`);
   assert(!/<meta name="robots" content="[^"]*noindex/i.test(html), `Indexed sitemap page is noindex: ${url.pathname}`);
   assert(schemas.length > 0, `Missing structured data on ${url.pathname}`);
+  assert(
+    /<header\b[^>]*\bclass=(?:"[^"]*\bsite-header\b[^"]*"|'[^']*\bsite-header\b[^']*')[^>]*>/i.test(html),
+    `Missing the real site header on ${url.pathname}`,
+  );
+  assert(/<footer(?:\s|>)/i.test(html), `Missing footer on ${url.pathname}`);
+  assert(
+    !/\bseo-prerender\b/i.test(html),
+    `Temporary SEO placeholder markup found on ${url.pathname}`,
+  );
+  const internalLinks = internalPageLinks(html);
+  assert(
+    internalLinks.size >= 5,
+    `Too few meaningful internal page links on ${url.pathname}: found ${internalLinks.size}, expected at least 5`,
+  );
 
   if (title) {
     const other = seenTitles.get(title);

@@ -4,11 +4,14 @@ import path from "node:path";
 import {
   GUIDES,
   SEO_BRANDS,
+  SEO_CONTENT_UPDATED,
   SEO_SIZES,
   SEO_VEHICLES,
 } from "../src/Data/seoContent.js";
+import { COMMERCIAL_PAGES } from "../src/Data/commercialPages.js";
 import PRODUCTS from "../src/Data/productsData.js";
 import { SERVICES } from "../src/Data/services.js";
+import { render } from "../dist-ssr/entry-server.js";
 
 const root = process.cwd();
 const dist = path.join(root, "dist");
@@ -17,7 +20,7 @@ const deploymentHost =
   process.env.VITE_SITE_URL ||
   process.env.VERCEL_PROJECT_PRODUCTION_URL ||
   process.env.VERCEL_URL ||
-  "localhost:4173";
+  "https://wheelsandwheels.vercel.app";
 const siteUrl = /^https?:\/\//.test(deploymentHost)
   ? deploymentHost.replace(/\/$/, "")
   : `${deploymentHost.startsWith("localhost") ? "http" : "https"}://${deploymentHost.replace(/\/$/, "")}`;
@@ -76,7 +79,7 @@ const staticPages = [
   { route: "/brands", title: "Tyre Brands in Lahore", description: "Compare premium, Japanese and Chinese tyre brands available on request in Lahore.", h1: "Compare tyre brands in Lahore", intro: "Understand brand positioning and ask for options in your exact tyre size." },
   { route: "/vehicles", title: "Find Tyres by Vehicle in Pakistan", description: "Browse common tyre-size references for popular cars in Pakistan and request final fitment verification.", h1: "Find tyres by vehicle", intro: "Choose a make and model, then confirm model year, trim, placard and existing sidewall size." },
   { route: "/tyre-sizes", title: "Popular Tyre Sizes in Lahore", description: "Browse popular tyre sizes from 12 to 24 inches and request current brand options in Lahore.", h1: "Browse tyres by complete size", intro: "Use width, profile and rim diameter together for a useful tyre search." },
-  { route: "/guides", title: "Tyre Guides for Pakistan Roads", description: "Practical tyre-size, safety, maintenance and alloy-rim guidance for drivers in Lahore and Pakistan.", h1: "Practical tyre guides for Pakistan", intro: "Clear explanations designed to help you ask better questions before buying." },
+  { route: "/guides", title: "Tyre Blog and Guides for Pakistan Roads", description: "Practical tyre-size, safety, maintenance and alloy-rim articles for drivers in Lahore and Pakistan.", h1: "Tyre blog and practical guides", intro: "Clear, useful articles designed to help you ask better questions before buying." },
   {
     route: "/about",
     title: "About Wheels & Wheels Lahore",
@@ -231,7 +234,44 @@ const guidePages = GUIDES.map((item) => ({
   })),
   faqs: item.faqs || [],
   article: true,
+  image: item.image,
+  publishedAt: item.publishedAt,
   updatedAt: item.updatedAt,
+  author: item.author,
+}));
+
+const commercialPages = COMMERCIAL_PAGES.map((item) => ({
+  route: item.route,
+  title: item.seoTitle || item.title,
+  description: item.metaDescription,
+  h1: item.title,
+  intro: item.lede,
+  image: item.image,
+  sections: item.sections?.map((section) => ({
+    title: section.heading,
+    text: [
+      ...(section.paragraphs || []),
+      ...(section.bullets || []),
+    ].join(" "),
+  })),
+  faqs: item.faqs || [],
+  updatedAt: SEO_CONTENT_UPDATED,
+  schemas: [
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "@id": `${siteUrl}${item.route}#collection`,
+      name: item.title,
+      description: item.metaDescription,
+      url: `${siteUrl}${item.route}`,
+      isPartOf: {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        name: "Wheels & Wheels",
+        url: siteUrl,
+      },
+    },
+  ],
 }));
 
 const servicePages = SERVICES.map((item) => ({
@@ -289,42 +329,45 @@ const pages = [
   ...brandPages,
   ...vehiclePages,
   ...sizePages,
+  ...commercialPages,
   ...guidePages,
   ...servicePages,
   ...productPages,
 ];
 
-function visibleContent(page) {
-  const sections = (page.sections || [])
-    .filter((section) => section.title && section.text)
-    .map(
-      (section) =>
-        `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p></section>`,
-    )
-    .join("");
-  const faq = (page.faqs || [])
-    .map(
-      (item) =>
-        `<details><summary>${escapeHtml(item.question || item.q)}</summary><p>${escapeHtml(item.answer || item.a)}</p></details>`,
-    )
-    .join("");
-  return `<main class="seo-prerender growth-page"><article class="section"><p class="eyebrow">WHEELS &amp; WHEELS LAHORE</p><h1>${escapeHtml(page.h1)}</h1><p>${escapeHtml(page.intro)}</p>${sections}${faq ? `<section><h2>Frequently asked questions</h2>${faq}</section>` : ""}<p><a href="/quote">Ask for current rate and fitment confirmation</a></p></article></main>`;
-}
-
 function structuredData(page, canonical) {
+  const imageUrl = page.image
+    ? `${siteUrl}${page.image.startsWith("/") ? page.image : `/${page.image}`}`
+    : `${siteUrl}/wheelpic.jpg`;
   const schemas = [
     {
       "@context": "https://schema.org",
       "@type": page.article ? "Article" : "WebPage",
+      "@id": `${canonical}#webpage`,
       name: page.h1,
       headline: page.article ? page.h1 : undefined,
       description: page.description,
       url: canonical,
+      image: imageUrl,
+      datePublished: page.article ? page.publishedAt : undefined,
       dateModified: page.updatedAt || undefined,
+      author: page.article
+        ? {
+            "@type": "Organization",
+            name: page.author?.name || "Wheels & Wheels tyre team",
+            url: page.author?.url
+              ? `${siteUrl}${page.author.url.startsWith("/") ? page.author.url : `/${page.author.url}`}`
+              : `${siteUrl}/about`,
+          }
+        : undefined,
       publisher: {
         "@type": "Organization",
         name: "Wheels & Wheels",
         url: siteUrl,
+        logo: {
+          "@type": "ImageObject",
+          url: `${siteUrl}/wheels-and-wheels-logo-600.png`,
+        },
       },
     },
   ];
@@ -349,6 +392,10 @@ function structuredData(page, canonical) {
 for (const page of pages) {
   const canonical = `${siteUrl}${page.route === "/" ? "" : page.route}`;
   const title = stripSiteName(page.title);
+  const socialImage = page.image
+    ? `${siteUrl}${page.image.startsWith("/") ? page.image : `/${page.image}`}`
+    : `${siteUrl}/wheelpic.jpg`;
+  const renderedContent = await render(page.route, { siteUrl });
   let html = template
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`)
     .replace(
@@ -360,6 +407,10 @@ for (const page of pages) {
       `<meta name="robots" content="${page.noIndex ? "noindex, nofollow, noarchive" : "index, follow, max-image-preview:large"}" />`,
     )
     .replace(
+      /<meta property="og:type" content="[^"]*"\s*\/?>/i,
+      `<meta property="og:type" content="${page.article ? "article" : "website"}" />`,
+    )
+    .replace(
       /<meta property="og:title" content="[^"]*"\s*\/?>/i,
       `<meta property="og:title" content="${escapeHtml(title)}" />`,
     )
@@ -368,12 +419,16 @@ for (const page of pages) {
       `<meta property="og:description" content="${escapeHtml(page.description)}" />`,
     )
     .replace(
+      /<meta property="og:image" content="[^"]*"\s*\/?>/i,
+      `<meta property="og:image" content="${socialImage}" />`,
+    )
+    .replace(
       "</head>",
-      `<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" />${structuredData(page, canonical)
+      `<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" /><meta name="twitter:title" content="${escapeHtml(title)}" /><meta name="twitter:description" content="${escapeHtml(page.description)}" /><meta name="twitter:image" content="${socialImage}" />${page.article && page.publishedAt ? `<meta property="article:published_time" content="${page.publishedAt}" />` : ""}${page.article && page.updatedAt ? `<meta property="article:modified_time" content="${page.updatedAt}" />` : ""}${structuredData(page, canonical)
         .map((schema) => `<script type="application/ld+json">${JSON.stringify(schema).replaceAll("<", "\\u003c")}</script>`)
         .join("")}</head>`,
     )
-    .replace('<div id="root"></div>', `<div id="root">${visibleContent(page)}</div>`);
+    .replace('<div id="root"></div>', `<div id="root">${renderedContent}</div>`);
   const target = page.route === "/" ? dist : path.join(dist, page.route.slice(1));
   await mkdir(target, { recursive: true });
   await writeFile(path.join(target, "index.html"), html, "utf8");
@@ -387,6 +442,7 @@ for (const page of pages) {
 const notFoundTitle = "Page Not Found | Wheels & Wheels";
 const notFoundDescription =
   "The requested Wheels & Wheels page could not be found. Browse tyres, alloy rims and practical fitment guides or contact our Lahore team.";
+const notFoundContent = await render("/__not-found__", { siteUrl });
 const notFoundHtml = template
   .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(notFoundTitle)}</title>`)
   .replace(
@@ -407,10 +463,13 @@ const notFoundHtml = template
   )
   .replace(
     '<div id="root"></div>',
-    '<div id="root"><main class="seo-prerender growth-page"><article class="section"><p class="eyebrow">404 · PAGE NOT FOUND</p><h1>This road ends here.</h1><p>The page may have moved or the address may be incorrect.</p><p><a href="/">Return home</a> · <a href="/shop">Browse tyres and rims</a> · <a href="/contact">Contact Wheels &amp; Wheels</a></p></article></main></div>',
+    `<div id="root">${notFoundContent}</div>`,
   );
 await writeFile(path.join(dist, "404.html"), notFoundHtml, "utf8");
 
+const productFallbackContent = await render("/product/__catalogue-lookup__", {
+  siteUrl,
+});
 const productFallbackHtml = template
   .replace(
     /<title>[\s\S]*?<\/title>/i,
@@ -426,7 +485,7 @@ const productFallbackHtml = template
   )
   .replace(
     '<div id="root"></div>',
-    '<div id="root"><main class="seo-prerender growth-page"><article class="section"><p class="eyebrow">PRODUCT LOOKUP</p><h1>Checking this catalogue item.</h1><p>Current product details are loading.</p></article></main></div>',
+    `<div id="root">${productFallbackContent}</div>`,
   );
 await writeFile(
   path.join(dist, "product-fallback.html"),
@@ -438,7 +497,7 @@ const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://w
   .filter((page) => !page.excludeFromSitemap)
   .map(
     (page) =>
-      `  <url><loc>${siteUrl}${page.route === "/" ? "" : page.route}</loc><lastmod>${page.updatedAt || "2026-09-29"}</lastmod><changefreq>${page.route.startsWith("/guides/") ? "monthly" : "weekly"}</changefreq><priority>${page.route === "/" ? "1.0" : page.route.split("/").length === 2 ? "0.9" : "0.7"}</priority></url>`,
+      `  <url><loc>${siteUrl}${page.route === "/" ? "" : page.route}</loc><lastmod>${page.updatedAt || SEO_CONTENT_UPDATED}</lastmod><changefreq>${page.route.startsWith("/guides/") ? "monthly" : "weekly"}</changefreq><priority>${page.route === "/" ? "1.0" : page.route.split("/").length === 2 ? "0.9" : "0.7"}</priority></url>`,
   )
   .join("\n")}\n</urlset>\n`;
 await writeFile(path.join(dist, "sitemap.xml"), sitemap, "utf8");

@@ -13,7 +13,10 @@ import Product from "./models/Product.js";
 import Order from "./models/Order.js";
 import Admin from "./models/Admin.js";
 import Inquiry from "./models/Inquiry.js";
-import { sendNotification } from "./notifications.js";
+import {
+  emailDeliveryConfigured,
+  sendNotification,
+} from "./notifications.js";
 import {
   hashPassword,
   requireAdmin,
@@ -194,7 +197,7 @@ const validateInquiry = (body) => {
   const phoneDigits = phone.replace(/\D/g, "");
   if (!/^[+()\-\s\d]+$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15)
     throw httpError(400, "Enter a valid phone or WhatsApp number");
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+  if (email && !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email))
     throw httpError(400, "Enter a valid email address");
   const dedupeKey = crypto
     .createHash("sha256")
@@ -210,6 +213,156 @@ const validateInquiry = (body) => {
     budget,
     message,
     dedupeKey,
+  };
+};
+
+const RFQ_REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const RFQ_REFERENCE_PATTERN = /^WW-\d{8}-[A-Z2-9]{6}$/;
+
+const generateInquiryReference = (now = new Date()) => {
+  const dateParts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Karachi",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(now)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value }) => [type, value]),
+  );
+  const suffix = Array.from(crypto.randomBytes(6), (byte) =>
+    RFQ_REFERENCE_ALPHABET[byte % RFQ_REFERENCE_ALPHABET.length],
+  ).join("");
+  return `WW-${dateParts.year}${dateParts.month}${dateParts.day}-${suffix}`;
+};
+
+const publicInquiryReference = (inquiry) =>
+  String(inquiry.reference || inquiry._id);
+
+const isReferenceCollision = (error) =>
+  error?.code === 11000 &&
+  (Boolean(error?.keyPattern?.reference) || Boolean(error?.keyValue?.reference));
+
+const createInquiryWithReference = async (details) => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await Inquiry.create({
+        ...details,
+        reference: generateInquiryReference(),
+      });
+    } catch (error) {
+      if (!isReferenceCollision(error)) throw error;
+    }
+  }
+  throw httpError(503, "Could not create an RFQ reference. Please try again.");
+};
+
+const safeEmailFailureCode = (error) => {
+  const code = String(error?.code || "").toUpperCase();
+  return ["EAUTH", "ETIMEDOUT", "ECONNECTION", "EENVELOPE"].includes(code)
+    ? code
+    : "DELIVERY_FAILED";
+};
+
+const deliverNotification = async (options, eventName) => {
+  if (!emailDeliveryConfigured())
+    return { sent: false, status: "not_configured" };
+  try {
+    const sent = await sendNotification(options);
+    return { sent, status: sent ? "sent" : "failed" };
+  } catch (error) {
+    console.error(`${eventName}: ${safeEmailFailureCode(error)}`);
+    return { sent: false, status: "failed" };
+  }
+};
+
+const sendInquiryReceiptNotifications = async (
+  inquiry,
+  { sendAdmin = true, sendCustomer = Boolean(inquiry.email) } = {},
+) => {
+  const reference = publicInquiryReference(inquiry);
+  const previous = inquiry.notification || {};
+  const attemptedAt = new Date();
+  const adminDeliveryPromise = sendAdmin
+    ? deliverNotification(
+        {
+          subject: `New RFQ ${reference} from ${inquiry.name}`,
+          heading: "New website RFQ",
+          replyTo: inquiry.email,
+          fields: [
+            ["RFQ reference", reference],
+            ["Customer", inquiry.name],
+            ["Phone", inquiry.phone],
+            ["Email", inquiry.email],
+            ["City", inquiry.city],
+            ["Vehicle", inquiry.vehicle],
+            ["Tyre size", inquiry.tyreSize],
+            ["Budget", inquiry.budget],
+            ["Requirements", inquiry.message],
+          ],
+        },
+        "RFQ_ADMIN_EMAIL_FAILED",
+      )
+    : {
+        sent: previous.adminEmailStatus === "sent",
+        status: previous.adminEmailStatus || "pending",
+      };
+  const customerDeliveryPromise = !inquiry.email
+    ? Promise.resolve({ sent: false, status: "not_requested" })
+    : sendCustomer
+      ? deliverNotification(
+          {
+            to: inquiry.email,
+            replyTo:
+              process.env.NOTIFICATION_EMAIL ||
+              "wheelsandwheelsinfo@gmail.com",
+            subject: `We received your Wheels & Wheels request - ${reference}`,
+            heading: "Your rate request is safely recorded",
+            fields: [
+              ["RFQ reference", reference],
+              ["Name", inquiry.name],
+              ["Vehicle", inquiry.vehicle || "Not specified"],
+              ["Requested size", inquiry.tyreSize || "Not specified"],
+              ["Requirements", inquiry.message],
+              [
+                "Next step",
+                "Our Lahore team will check current availability, fitment and rates, then contact you.",
+              ],
+              ["Official call", "0321 4229594"],
+              ["Official WhatsApp", "+92 339 0045836"],
+            ],
+          },
+          "RFQ_CUSTOMER_EMAIL_FAILED",
+        )
+      : Promise.resolve({
+          sent: previous.customerEmailStatus === "sent",
+          status: previous.customerEmailStatus || "pending",
+        });
+  const [adminDelivery, customerDelivery] = await Promise.all([
+    Promise.resolve(adminDeliveryPromise),
+    customerDeliveryPromise,
+  ]);
+
+  const statusUpdate = {
+    "notification.adminEmailStatus": adminDelivery.status,
+    "notification.customerEmailStatus": customerDelivery.status,
+    "notification.attemptedAt": attemptedAt,
+  };
+  if (adminDelivery.sent)
+    statusUpdate["notification.adminEmailSentAt"] = attemptedAt;
+  if (customerDelivery.sent)
+    statusUpdate["notification.customerEmailSentAt"] = attemptedAt;
+  await Inquiry.updateOne({ _id: inquiry._id }, { $set: statusUpdate }).catch(
+    () => console.error("RFQ_EMAIL_STATUS_UPDATE_FAILED"),
+  );
+
+  return {
+    adminEmailSent: adminDelivery.sent,
+    adminEmailStatus: adminDelivery.status,
+    customerEmailExpected: Boolean(inquiry.email),
+    customerEmailSent: customerDelivery.sent,
+    customerEmailStatus: customerDelivery.status,
   };
 };
 
@@ -360,17 +513,50 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
       dedupeKey,
       createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
     })
-      .select("_id status")
+      .select(
+        "_id reference status name phone email city vehicle tyreSize budget message notification",
+      )
       .maxTimeMS(3000)
       .lean();
     if (duplicate) {
+      const reference = publicInquiryReference(duplicate);
+      const retryable = (status) =>
+        !status || status === "failed" || status === "not_configured";
+      const shouldRetryAdmin = retryable(
+        duplicate.notification?.adminEmailStatus,
+      );
+      const shouldRetryCustomer =
+        Boolean(duplicate.email) &&
+        retryable(duplicate.notification?.customerEmailStatus);
+      const delivery =
+        shouldRetryAdmin || shouldRetryCustomer
+          ? await sendInquiryReceiptNotifications(duplicate, {
+              sendAdmin: shouldRetryAdmin,
+              sendCustomer: shouldRetryCustomer,
+            })
+          : {
+              adminEmailSent:
+                duplicate.notification?.adminEmailStatus === "sent",
+              adminEmailStatus:
+                duplicate.notification?.adminEmailStatus || "pending",
+              customerEmailExpected: Boolean(duplicate.email),
+              customerEmailSent:
+                duplicate.notification?.customerEmailStatus === "sent",
+              customerEmailStatus:
+                duplicate.notification?.customerEmailStatus ||
+                (duplicate.email ? "pending" : "not_requested"),
+            };
       res.set("X-Deduplicated", "true");
       return res.json({
-        inquiryId: duplicate._id,
+        inquiryId: reference,
+        reference,
         status: duplicate.status,
+        deduplicated: true,
+        emailSent: delivery.adminEmailSent,
+        ...delivery,
       });
     }
-    const inquiry = await Inquiry.create({
+    const inquiry = await createInquiryWithReference({
       name,
       phone,
       email,
@@ -380,30 +566,19 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
       budget,
       message,
       dedupeKey,
+      notification: {
+        adminEmailStatus: "pending",
+        customerEmailStatus: email ? "pending" : "not_requested",
+      },
     });
-    const emailSent = await sendNotification({
-      subject: `New RFQ from ${name}`,
-      heading: "New website RFQ",
-      replyTo: email,
-      fields: [
-        ["RFQ ID", inquiry._id],
-        ["Customer", name],
-        ["Phone", phone],
-        ["Email", email],
-        ["City", city],
-        ["Vehicle", vehicle],
-        ["Tyre size", tyreSize],
-        ["Budget", budget],
-        ["Requirements", message],
-      ],
-    }).catch((error) => {
-      console.error("RFQ email failed", error.message);
-      return false;
-    });
+    const reference = publicInquiryReference(inquiry);
+    const delivery = await sendInquiryReceiptNotifications(inquiry);
     res.status(201).json({
-      inquiryId: inquiry._id,
+      inquiryId: reference,
+      reference,
       status: inquiry.status,
-      emailSent,
+      emailSent: delivery.adminEmailSent,
+      ...delivery,
     });
   } catch (e) {
     next(e);
@@ -415,14 +590,22 @@ app.get("/api/inquiries/track/:id", sensitiveLimiter, async (req, res, next) => 
     res.set("Cache-Control", "private, no-store");
     const phone = String(req.query.phone || "").replace(/\D/g, "");
     if (!phone) return res.status(400).json({ message: "Phone number is required" });
-    if (!mongoose.isValidObjectId(req.params.id))
+    const requestedReference = String(req.params.id || "").trim().toUpperCase();
+    const lookup = RFQ_REFERENCE_PATTERN.test(requestedReference)
+      ? { reference: requestedReference }
+      : mongoose.isValidObjectId(req.params.id)
+        ? { _id: req.params.id }
+        : null;
+    if (!lookup)
       return res.status(404).json({ message: "RFQ not found. Check the reference and phone number." });
-    const inquiry = await Inquiry.findById(req.params.id).lean();
+    const inquiry = await Inquiry.findOne(lookup).lean();
     const savedPhone = String(inquiry?.phone || "").replace(/\D/g, "");
     if (!inquiry || savedPhone.slice(-10) !== phone.slice(-10))
       return res.status(404).json({ message: "RFQ not found. Check the reference and phone number." });
+    const reference = publicInquiryReference(inquiry);
     res.json({
-      inquiryId: inquiry._id,
+      inquiryId: reference,
+      reference,
       name: inquiry.name,
       vehicle: inquiry.vehicle,
       tyreSize: inquiry.tyreSize,
@@ -476,6 +659,7 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
       inquiries,
       newInquiries,
       inquiryStatuses,
+      emailDeliveryIssues,
     ] = await Promise.all([
       Product.countDocuments(),
       Order.countDocuments(),
@@ -519,6 +703,25 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
       Inquiry.countDocuments(),
       Inquiry.countDocuments({ status: "new" }),
       Inquiry.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+      Inquiry.countDocuments({
+        $or: [
+          {
+            "notification.adminEmailStatus": {
+              $in: ["failed", "not_configured"],
+            },
+          },
+          {
+            "notification.customerEmailStatus": {
+              $in: ["failed", "not_configured"],
+            },
+          },
+          {
+            "notification.quoteEmailStatus": {
+              $in: ["failed", "not_configured"],
+            },
+          },
+        ],
+      }),
     ]);
     res.json({
       products,
@@ -533,6 +736,8 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
       inquiries,
       newInquiries,
       inquiryStatuses,
+      emailConfigured: emailDeliveryConfigured(),
+      emailDeliveryIssues,
     });
   } catch (e) {
     next(e);
@@ -614,9 +819,22 @@ app.patch("/api/inquiries/:id", requireAdmin, async (req, res, next) => {
     if (req.body.status && !allowed.includes(req.body.status))
       return res.status(400).json({ message: "Invalid inquiry status" });
     const isResponse = req.body.sendReply === true;
-    const quotedAmount = req.body.quotedAmount === "" ? undefined : Number(req.body.quotedAmount);
+    const retryNotifications = req.body.retryNotifications === true;
+    const quotedAmount =
+      req.body.quotedAmount === "" || req.body.quotedAmount == null
+        ? undefined
+        : Number(req.body.quotedAmount);
     if (req.body.quotedAmount !== undefined && req.body.quotedAmount !== "" && (!Number.isFinite(quotedAmount) || quotedAmount < 0))
       return res.status(400).json({ message: "Quoted amount must be a valid positive number" });
+    if (
+      isResponse &&
+      (!String(req.body.reply || "").trim() ||
+        (quotedAmount === undefined && !String(req.body.quotedItems || "").trim()))
+    )
+      return res.status(400).json({
+        message:
+          "Add a customer reply and either quoted items or a quoted amount before sending",
+      });
     const inquiry = await Inquiry.findByIdAndUpdate(
       req.params.id,
       {
@@ -632,26 +850,62 @@ app.patch("/api/inquiries/:id", requireAdmin, async (req, res, next) => {
       { new: true, runValidators: true },
     );
     if (!inquiry) return res.status(404).json({ message: "Inquiry not found" });
-    let emailSent = false;
-    if (isResponse && inquiry.email) {
-      emailSent = await sendNotification({
-        to: inquiry.email,
-        replyTo: process.env.NOTIFICATION_EMAIL || "wheelsandwheelsinfo@gmail.com",
-        subject: `Your Wheels & Wheels quotation – ${inquiry._id}`,
-        heading: "Your requested rates are ready",
-        fields: [
-          ["RFQ reference", inquiry._id],
-          ["Quoted items", inquiry.quotedItems],
-          ["Quoted amount", inquiry.quotedAmount != null ? `Rs. ${inquiry.quotedAmount.toLocaleString("en-PK")}` : "Contact us"],
-          ["Sales reply", inquiry.reply],
-          ["Official WhatsApp", "+92 339 0045836"],
-        ],
-      }).catch((error) => {
-        console.error("Customer quote email failed", error.message);
-        return false;
+    let receiptDelivery;
+    if (retryNotifications) {
+      receiptDelivery = await sendInquiryReceiptNotifications(inquiry, {
+        sendAdmin: true,
+        sendCustomer: Boolean(inquiry.email),
       });
     }
-    res.json({ inquiry, emailSent });
+    let emailSent = false;
+    let emailDeliveryStatus = isResponse ? "not_requested" : undefined;
+    if (isResponse && inquiry.email) {
+      const reference = publicInquiryReference(inquiry);
+      const delivery = await deliverNotification(
+        {
+          to: inquiry.email,
+          replyTo:
+            process.env.NOTIFICATION_EMAIL ||
+            "wheelsandwheelsinfo@gmail.com",
+          subject: `Your Wheels & Wheels quotation - ${reference}`,
+          heading: "Your requested rates are ready",
+          fields: [
+            ["RFQ reference", reference],
+            ["Quoted items", inquiry.quotedItems],
+            [
+              "Quoted amount",
+              inquiry.quotedAmount != null
+                ? `Rs. ${inquiry.quotedAmount.toLocaleString("en-PK")}`
+                : "Contact us",
+            ],
+            ["Sales reply", inquiry.reply],
+            ["Official call", "0321 4229594"],
+            ["Official WhatsApp", "+92 339 0045836"],
+          ],
+        },
+        "CUSTOMER_QUOTE_EMAIL_FAILED",
+      );
+      emailSent = delivery.sent;
+      emailDeliveryStatus = delivery.status;
+    }
+    if (isResponse) {
+      const attemptedAt = new Date();
+      const emailUpdate = {
+        "notification.quoteEmailStatus": emailDeliveryStatus,
+        "notification.quoteEmailAttemptedAt": attemptedAt,
+      };
+      if (emailSent)
+        emailUpdate["notification.quoteEmailSentAt"] = attemptedAt;
+      await Inquiry.updateOne({ _id: inquiry._id }, { $set: emailUpdate }).catch(
+        () => console.error("QUOTE_EMAIL_STATUS_UPDATE_FAILED"),
+      );
+    }
+    res.json({
+      inquiry,
+      emailSent,
+      emailDeliveryStatus,
+      receiptDelivery,
+    });
   } catch (e) {
     next(e);
   }

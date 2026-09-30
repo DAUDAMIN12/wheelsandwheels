@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -8,6 +8,7 @@ import {
   useLocation,
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import {
   FaBars,
@@ -45,6 +46,9 @@ const TyreSizesHub = lazy(() =>
 );
 const GuidesHub = lazy(() => import("./components/growth/GuidesHub.jsx"));
 const GuideArticle = lazy(() => import("./components/growth/GuideArticle.jsx"));
+const CommercialLandingPage = lazy(() =>
+  import("./components/growth/CommercialLandingPage.jsx"),
+);
 const BrandLandingPage = lazy(() =>
   import("./components/growth/SeoLandingPage.jsx").then((module) => ({ default: module.BrandLandingPage })),
 );
@@ -74,6 +78,13 @@ const WHATSAPP = "923390045836";
 const RFQ_PAGE_SIZE = 50;
 const ONLINE_CHECKOUT_ENABLED = false;
 const CUSTOMER_PORTAL_ENABLED = false;
+const whatsappNumberFor = (phone) => {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.startsWith("0092")) return digits.slice(2);
+  if (digits.startsWith("92")) return digits;
+  if (digits.startsWith("0")) return `92${digits.slice(1)}`;
+  return digits;
+};
 const BRAND_PRIORITY = [
   "Michelin", "Pirelli", "Continental", "Dunlop", "Yokohama",
   "Bridgestone", "Toyo", "Nitto", "Falken", "APLUS", "Sailun",
@@ -109,8 +120,25 @@ const SOURCING_BRANDS = [
 
 function RouteEffects() {
   const { pathname, hash } = useLocation();
+  const previousRoute = useRef(null);
   useEffect(() => {
     const root = document.documentElement;
+    const route = `${pathname}${hash}`;
+
+    if (previousRoute.current === null) {
+      previousRoute.current = route;
+      if (hash) {
+        window.requestAnimationFrame(() => {
+          document.querySelector(hash)?.scrollIntoView({ block: "start" });
+        });
+      } else {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
+      return undefined;
+    }
+
+    if (previousRoute.current === route) return undefined;
+    previousRoute.current = route;
     root.classList.remove("route-enter");
     // Force a reflow so the animation restarts even between similar pages.
     void root.offsetWidth;
@@ -314,9 +342,9 @@ function Header({ count, openCart }) {
             <div className="mega-panel">
               <section>
                 <small>SHOP BY TYPE</small>
-                <Link to="/shop?category=Premium%20Brands" onClick={closeNavigation}>Premium tyres</Link>
-                <Link to="/shop?category=Japanese%20Brands" onClick={closeNavigation}>Japanese tyres</Link>
-                <Link to="/shop?category=Chinese%20Brands" onClick={closeNavigation}>Chinese tyres</Link>
+                <Link to="/tyres/japanese" onClick={closeNavigation}>Japanese tyres</Link>
+                <Link to="/tyres/premium" onClick={closeNavigation}>Premium tyres</Link>
+                <Link to="/tyres/chinese" onClick={closeNavigation}>Chinese tyres</Link>
                 <Link to="/shop?category=All%20Tyres" onClick={closeNavigation}>All 12–24 inch tyres</Link>
               </section>
               <section>
@@ -343,17 +371,18 @@ function Header({ count, openCart }) {
               <section><small>TOYOTA</small><Link to="/vehicles/toyota-corolla" onClick={closeNavigation}>Corolla</Link><Link to="/vehicles/toyota-yaris" onClick={closeNavigation}>Yaris</Link><Link to="/vehicles/toyota-fortuner" onClick={closeNavigation}>Fortuner</Link></section>
             </div>
           </details>
-          <Link to="/shop?category=Rims" onClick={closeNavigation}>Rims</Link>
+          <Link to="/rims" onClick={closeNavigation}>Rims</Link>
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
             <summary>Services</summary>
             <div className="mega-panel compact-panel">
               <section><small>WHEEL CARE</small><Link to="/services" onClick={closeNavigation}>All services</Link><Link to="/services/tyre-installation" onClick={closeNavigation}>Tyre installation</Link><Link to="/services/wheel-balancing" onClick={closeNavigation}>Wheel balancing</Link><Link to="/services/wheel-alignment" onClick={closeNavigation}>Wheel alignment</Link></section>
             </div>
           </details>
+          <Link to="/guides" onClick={closeNavigation}>Blog</Link>
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
-            <summary>Advice</summary>
+            <summary>More</summary>
             <div className="mega-panel compact-panel">
-              <section><small>HELP & COMPANY</small><Link to="/guides" onClick={closeNavigation}>Tyre guides</Link><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link></section>
+              <section><small>HELP & COMPANY</small><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link></section>
             </div>
           </details>
           <Link className="nav-quote" to="/quote" onClick={closeNavigation}>Get current rate</Link>
@@ -557,7 +586,7 @@ function Home({ add, products }) {
           <Link to="/tyre-sizes"><span>01</span><small>EXACT FITMENT</small><h3>Find tyres by size</h3><p>Start with a sidewall code such as 195/65 R15.</p><b>Browse popular sizes <FaChevronRight /></b></Link>
           <Link to="/vehicles"><span>02</span><small>MAKE &amp; MODEL</small><h3>Find tyres by car</h3><p>Review common sizes, then verify year and variant.</p><b>Choose your vehicle <FaChevronRight /></b></Link>
           <Link to="/brands"><span>03</span><small>COMPARE OPTIONS</small><h3>Find tyres by brand</h3><p>Explore premium, Japanese and Chinese choices.</p><b>Compare tyre brands <FaChevronRight /></b></Link>
-          <Link to="/guides"><span>04</span><small>BUY WITH CONTEXT</small><h3>Read practical guides</h3><p>Learn about size codes, tyre age, rims and road use.</p><b>Visit the advice hub <FaChevronRight /></b></Link>
+          <Link to="/guides"><span>04</span><small>BUY WITH CONTEXT</small><h3>Read our tyre blog</h3><p>Learn about size codes, tyre age, rims and road use.</p><b>Visit the blog <FaChevronRight /></b></Link>
         </div>
         <nav className="popular-seo-links" aria-label="Popular tyre searches">
           <strong>Popular:</strong>
@@ -595,35 +624,49 @@ function Home({ add, products }) {
       </section>
       <section className="category-section">
         <Link
-          to="/shop?category=Premium%20%26%20Japanese"
+          to="/tyres/japanese"
           className="category japan-cat"
         >
           <span>01</span>
           <div>
-            <small>PREMIUM FIRST. JAPANESE HERITAGE.</small>
-            <h2>Premium &amp; Japanese</h2>
-            <p>Michelin, Pirelli and Continental, followed by leading Japanese brands.</p>
+            <small>COMFORT. CONTROL. HERITAGE.</small>
+            <h2>Japanese tyres</h2>
+            <p>Bridgestone, Yokohama, Dunlop, Toyo and Falken options by exact fitment.</p>
+            <b>
+              Explore Japanese tyres <FaChevronRight />
+            </b>
+          </div>
+        </Link>
+        <Link
+          to="/tyres/premium"
+          className="category premium-cat"
+        >
+          <span>02</span>
+          <div>
+            <small>MICHELIN. PIRELLI. CONTINENTAL.</small>
+            <h2>Premium tyres</h2>
+            <p>Compare premium patterns by complete size, ratings and real driving priorities.</p>
             <b>
               Explore premium tyres <FaChevronRight />
             </b>
           </div>
         </Link>
         <Link
-          to="/shop?category=Chinese%20Brands"
+          to="/tyres/chinese"
           className="category china-cat"
         >
-          <span>02</span>
+          <span>03</span>
           <div>
             <small>VALUE. RANGE. AVAILABILITY.</small>
-            <h2>Chinese brands</h2>
-            <p>Trusted value-focused brands across 12–24 inch requirements.</p>
+            <h2>Chinese tyres</h2>
+            <p>Ask for APLUS, Sailun, Linglong, Triangle and RoadX in your exact size.</p>
             <b>
-              Explore Chinese brands <FaChevronRight />
+              Explore Chinese tyres <FaChevronRight />
             </b>
           </div>
         </Link>
-        <Link to="/shop?category=Rims" className="category rim-cat">
-          <span>03</span>
+        <Link to="/rims" className="category rim-cat">
+          <span>04</span>
           <div>
             <small>12–24 INCH FITMENTS.</small>
             <h2>Alloy rims</h2>
@@ -689,7 +732,7 @@ function Home({ add, products }) {
 }
 
 function Shop({ add, products, loading }) {
-  const params = new URLSearchParams(window.location.search);
+  const [params] = useSearchParams();
   const requestedSize = params.get("size") || "";
   const requestedParts = requestedSize.match(/(\d{3})\/(\d{2})\s*R(\d{2})/i);
   const requestedCategory = params.get("category");
@@ -793,6 +836,11 @@ function Shop({ add, products, loading }) {
   }, [inventoryItems, sourcedItems, sort]);
   return (
     <main className="shop-page">
+      <SeoHead
+        title="Browse Tyres and Alloy Rims in Lahore"
+        description="Browse tyre and alloy-rim options by category, brand and complete tyre size, then ask Wheels & Wheels Lahore for the current rate and verified fitment."
+        canonical="/shop"
+      />
       <div className="shop-banner">
         <div className="eyebrow light">THE COLLECTION</div>
         <h1>Find your next set.</h1>
@@ -1125,14 +1173,23 @@ function ProductDetail({ products, add }) {
           noIndex
         />
         <main className="detail-page">
-          <div className="empty">Product not found.</div>
+          <div className="empty product-state">
+            <div className="eyebrow">CATALOGUE LOOKUP</div>
+            <h1>Product not found.</h1>
+            <p>Browse the current tyre and rim catalogue or ask our Lahore team to source your exact requirement.</p>
+            <Link className="primary" to="/shop">Browse current options</Link>
+          </div>
         </main>
       </>
     );
   if (!product)
     return (
       <main className="detail-page">
-        <div className="empty">Loading product…</div>
+        <div className="empty product-state" aria-live="polite">
+          <div className="eyebrow">CATALOGUE LOOKUP</div>
+          <h1>Checking this product.</h1>
+          <p>We are loading the requested tyre or rim and its current availability.</p>
+        </div>
       </main>
     );
   return (
@@ -1377,7 +1434,7 @@ function LeadInsights({ summary }) {
 }
 
 function TrackOrder() {
-  const trackParams = new URLSearchParams(window.location.search);
+  const [trackParams] = useSearchParams();
   const [form, setForm] = useState({
     id: trackParams.get("id") || "",
     phone: trackParams.get("phone") || "",
@@ -1738,7 +1795,7 @@ function Checkout({ cart, clear }) {
 }
 
 function QuoteRequest() {
-  const quoteParams = new URLSearchParams(window.location.search);
+  const [quoteParams] = useSearchParams();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -1753,6 +1810,15 @@ function QuoteRequest() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const successPanel = useRef(null);
+  const rfqReference = result?.reference || result?.inquiryId || "";
+  const customerEmailStatus = result?.customerEmailStatus;
+  useEffect(() => {
+    if (!result || !successPanel.current) return;
+    successPanel.current.focus({ preventScroll: true });
+    successPanel.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [result]);
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -1770,23 +1836,78 @@ function QuoteRequest() {
   if (result)
     return (
       <main className="quote-page">
-        <div className="order-success">
-          <FaCheck />
+        <SeoHead
+          title="Tyre Rate Request Received"
+          description="Your Wheels & Wheels tyre or rim rate request has been received."
+          canonical="/quote"
+          noIndex
+        />
+        <div className="order-success" ref={successPanel} tabIndex="-1" aria-live="polite">
+          <FaCheck aria-hidden="true" />
           <div className="eyebrow">REQUEST RECEIVED</div>
           <h1>We’re preparing your options.</h1>
-          <p>
-            Your RFQ number is <b>{result.inquiryId}</b>. Our team will contact
-            you on <b>{form.phone}</b>.
-          </p>
-          <button className="copy-reference" type="button" onClick={() => navigator.clipboard?.writeText(result.inquiryId)}>Copy RFQ reference</button>
-          <a
-            className="primary"
-            href={`https://wa.me/923390045836?text=${encodeURIComponent(`Hi, I just submitted RFQ ${result.inquiryId}.`)}`}
-            target="_blank"
-            rel="noreferrer"
+          <p>Your request is safely recorded. Keep this short reference when you call or message us.</p>
+          <dl className="success-details">
+            <div><dt>RFQ reference</dt><dd>{rfqReference}</dd></div>
+            <div><dt>Submitted contact number</dt><dd>{form.phone}</dd></div>
+          </dl>
+          <p className="success-note">We will use the contact number you entered to reply. For immediate help, contact the official shop numbers below.</p>
+          <div
+            className={`rfq-delivery-message ${result.customerEmailSent ? "sent" : "attention"}`}
+            role="status"
           >
-            <FaWhatsapp /> Continue on WhatsApp
-          </a>
+            {form.email ? (
+              result.customerEmailSent ? (
+                <>
+                  <b>Confirmation email sent</b>
+                  <span>Check {form.email} and its spam folder for your RFQ receipt.</span>
+                </>
+              ) : (
+                <>
+                  <b>Your RFQ is saved, but email delivery was not confirmed</b>
+                  <span>
+                    Keep the reference above and use call or WhatsApp. Status: {customerEmailStatus === "not_configured" ? "email service not configured" : "delivery failed"}.
+                  </span>
+                </>
+              )
+            ) : (
+              <>
+                <b>No confirmation email requested</b>
+                <span>You did not enter an email address; we will reply using your submitted phone number.</span>
+              </>
+            )}
+          </div>
+          <button
+            className="copy-reference"
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard?.writeText(rfqReference);
+                setCopied(true);
+              } catch {
+                setCopied(false);
+              }
+            }}
+          >
+            {copied ? "RFQ reference copied" : "Copy RFQ reference"}
+          </button>
+          <div className="success-actions">
+            <a className="primary" href="tel:+923214229594">
+              <FaPhoneAlt aria-hidden="true" /> Call 0321 4229594
+            </a>
+            <a
+              className="success-whatsapp"
+              href={`https://wa.me/923390045836?text=${encodeURIComponent(`Hi Wheels & Wheels, I just submitted RFQ ${rfqReference}.`)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FaWhatsapp aria-hidden="true" /> WhatsApp 0339 0045836
+            </a>
+            <Link className="success-secondary" to="/shop">Browse tyre options</Link>
+          </div>
+          <button className="success-text" type="button" onClick={() => { setResult(null); setCopied(false); }}>
+            Submitted the wrong number? Correct the details
+          </button>
         </div>
       </main>
     );
@@ -1796,6 +1917,7 @@ function QuoteRequest() {
         title="Request Current Tyre and Rim Rates in Lahore"
         description="Send your vehicle, tyre size and requirements to Wheels & Wheels Lahore for current tyre or alloy-rim options and verified fitment advice."
         canonical="/quote"
+        noIndex
       />
       <section className="quote-intro">
         <div className="eyebrow light">PERSONAL FITMENT ADVICE</div>
@@ -1809,7 +1931,7 @@ function QuoteRequest() {
             <FaCheck /> Saved directly in our sales dashboard
           </span>
           <span>
-            <FaCheck /> Email alert sent to our sales team
+            <FaCheck /> Shop and customer email delivery is checked after saving
           </span>
           <span>
             <FaCheck /> Reply by phone, email or WhatsApp
@@ -1841,14 +1963,19 @@ function QuoteRequest() {
             Phone / WhatsApp
             <input
               required
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="03XX XXXXXXX"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </label>
           <label>
-            Email
+            Email for your confirmation (optional)
             <input
               type="email"
+              autoComplete="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
@@ -1907,7 +2034,7 @@ function QuoteRequest() {
 }
 
 function QuoteStatus() {
-  const params = new URLSearchParams(window.location.search);
+  const [params] = useSearchParams();
   const [reference, setReference] = useState(params.get("id") || "");
   const [phone, setPhone] = useState(params.get("phone") || "");
   const [quote, setQuote] = useState(null);
@@ -1949,7 +2076,7 @@ function QuoteStatus() {
         {error && <div className="form-error">{error}</div>}
         {quote && (
           <div className="tracking-result quote-result">
-            <div><FaCheck /><div><small>RFQ REFERENCE</small><b>{quote.inquiryId}</b></div></div>
+            <div><FaCheck /><div><small>RFQ REFERENCE</small><b>{quote.reference || quote.inquiryId}</b></div></div>
             <div className={`track-steps ${quote.status === "closed" ? "cancelled" : ""}`}>
               {quote.status === "closed" ? <b>This request has been closed</b> : steps.map((step, index) => (
                 <span className={index <= position ? "done" : ""} key={step}><i><FaCheck /></i><b>{step}</b></span>
@@ -1961,7 +2088,7 @@ function QuoteStatus() {
               {quote.quotedItems && <div><small>ITEMS / AVAILABILITY</small><p>{quote.quotedItems}</p></div>}
               {quote.reply && <div><small>MESSAGE FROM SALES</small><p>{quote.reply}</p></div>}
             </div>
-            <a className="primary quote-accept" href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`I would like to accept/discuss quotation ${quote.inquiryId}.`)}`} target="_blank" rel="noreferrer"><FaWhatsapp /> Accept or discuss on official WhatsApp</a>
+            <a className="primary quote-accept" href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`I would like to accept/discuss quotation ${quote.reference || quote.inquiryId}.`)}`} target="_blank" rel="noreferrer"><FaWhatsapp /> Accept or discuss on official WhatsApp</a>
           </div>
         )}
       </section>
@@ -1984,7 +2111,15 @@ function InquiryQuoteEditor({ item, onSaved }) {
     setMessage("");
     try {
       const result = await api(`/inquiries/${item._id}`, { method: "PATCH", body: JSON.stringify({ ...draft, sendReply }) });
-      setMessage(sendReply ? (result.emailSent ? "Quote saved and emailed." : "Quote saved. No customer email—use WhatsApp.") : "Draft saved.");
+      if (!sendReply) setMessage("Draft saved.");
+      else if (result.emailSent)
+        setMessage("Quote saved and email delivery confirmed.");
+      else if (result.emailDeliveryStatus === "not_requested")
+        setMessage("Quote saved. No customer email was supplied; use WhatsApp or call.");
+      else if (result.emailDeliveryStatus === "not_configured")
+        setMessage("Quote saved, but SMTP is not configured. Use WhatsApp or call.");
+      else
+        setMessage("Quote saved, but email delivery failed. Use WhatsApp or call and check the mail settings.");
       onSaved();
     } catch (err) {
       setMessage(err.message);
@@ -2002,6 +2137,62 @@ function InquiryQuoteEditor({ item, onSaved }) {
   </div></details>;
 }
 
+function EmailDeliveryBadge({ label, status }) {
+  const normalized = status || "unknown";
+  const copy = {
+    sent: "sent",
+    failed: "failed",
+    not_configured: "not configured",
+    not_requested: "not requested",
+    pending: "pending",
+    unknown: "legacy / unknown",
+  }[normalized];
+  return (
+    <small className={`email-delivery-badge ${normalized}`}>
+      {label}: {copy}
+    </small>
+  );
+}
+
+function InquiryEmailRetry({ item, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const retryable = ["failed", "not_configured"];
+  const needsRetry =
+    retryable.includes(item.notification?.adminEmailStatus) ||
+    retryable.includes(item.notification?.customerEmailStatus);
+  if (!needsRetry) return null;
+  const retry = async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await api(`/inquiries/${item._id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ retryNotifications: true }),
+      });
+      const delivery = result.receiptDelivery;
+      if (delivery?.adminEmailSent && (!item.email || delivery.customerEmailSent))
+        setMessage("Receipt emails delivered.");
+      else if (delivery?.adminEmailStatus === "not_configured")
+        setMessage("SMTP is still not configured.");
+      else setMessage("Delivery still failed; use call or WhatsApp.");
+      onSaved();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="email-retry-control">
+      <button type="button" disabled={busy} onClick={retry}>
+        {busy ? "Retrying..." : "Retry receipt emails"}
+      </button>
+      {message && <small>{message}</small>}
+    </div>
+  );
+}
+
 function mergeUniqueInquiries(current, incoming) {
   const byId = new Map(current.map((item) => [item._id, item]));
   incoming.forEach((item) => byId.set(item._id, item));
@@ -2009,7 +2200,7 @@ function mergeUniqueInquiries(current, incoming) {
 }
 
 function Admin() {
-  const [token, setToken] = useState(localStorage.getItem("ww-admin-token"));
+  const [token, setToken] = useState(null);
   const [login, setLogin] = useState({
     email: "admin@wheelsandwheels.pk",
     password: "",
@@ -2037,6 +2228,9 @@ function Admin() {
   };
   const [draft, setDraft] = useState(empty);
   const [editing, setEditing] = useState(null);
+  useEffect(() => {
+    setToken(localStorage.getItem("ww-admin-token"));
+  }, []);
   const load = async () => {
     try {
       const [o, p, s, inquiriesResult] = await Promise.all([
@@ -2211,6 +2405,20 @@ function Admin() {
           <b>{inquiryStatusMap.won || 0}</b>
         </article>
       </div>
+      <div
+        className={`admin-email-health ${summary.emailConfigured ? "ok" : "warning"}`}
+        role="status"
+      >
+        <div>
+          <b>{summary.emailConfigured ? "Email service configured" : "Email service needs configuration"}</b>
+          <span>
+            {summary.emailConfigured
+              ? "RFQs remain stored in this dashboard even if an email provider rejects or delays a message."
+              : "Add the SMTP variables in Vercel and redeploy. Until then, monitor this RFQ dashboard directly."}
+          </span>
+        </div>
+        <strong>{summary.emailDeliveryIssues || 0} RFQs need an email check</strong>
+      </div>
       <details className="admin-guide">
         <summary>How to manage the RFQ lead funnel</summary>
         <div>
@@ -2265,6 +2473,8 @@ function Admin() {
               <span>
                 <b>{item.name}</b>
                 <small>
+                  {item.reference || `Legacy RFQ · ${String(item._id).slice(-8).toUpperCase()}`}
+                  <br />
                   {item.city || "City not provided"}
                   <br />
                   {new Date(item.createdAt).toLocaleString()}
@@ -2282,9 +2492,26 @@ function Admin() {
               <span>
                 <a href={`tel:${item.phone}`}>{item.phone}</a>
                 <small>{item.email || "No email"}</small>
+                <div className="email-delivery-list">
+                  <EmailDeliveryBadge
+                    label="Shop alert"
+                    status={item.notification?.adminEmailStatus}
+                  />
+                  <EmailDeliveryBadge
+                    label="Customer receipt"
+                    status={item.notification?.customerEmailStatus || (item.email ? undefined : "not_requested")}
+                  />
+                  {item.notification?.quoteEmailStatus && (
+                    <EmailDeliveryBadge
+                      label="Quote email"
+                      status={item.notification.quoteEmailStatus}
+                    />
+                  )}
+                </div>
+                <InquiryEmailRetry item={item} onSaved={load} />
                 <a
                   className="admin-whatsapp"
-                  href={`https://wa.me/${item.phone.replace(/\D/g, "").replace(/^0/, "92")}`}
+                  href={`https://wa.me/${whatsappNumberFor(item.phone)}`}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -2544,12 +2771,16 @@ function Footer() {
             <Link to="/tyre-sizes">By tyre size</Link>
             <Link to="/vehicles">By vehicle</Link>
             <Link to="/brands">By brand</Link>
+            <Link to="/tyres/japanese">Japanese tyres</Link>
+            <Link to="/tyres/chinese">Chinese tyres</Link>
+            <Link to="/tyres/premium">Premium tyres</Link>
+            <Link to="/rims">Alloy rims</Link>
           </p>
         </div>
         <div>
           <h4>Helpful information</h4>
           <p className="footer-links">
-            <Link to="/guides">Tyre guides</Link>
+            <Link to="/guides">Tyre blog &amp; guides</Link>
             <Link to="/services">Wheel services</Link>
             <Link to="/about">About us</Link>
             <Link to="/lahore-tyre-shop">Lahore tyre shop</Link>
@@ -2592,11 +2823,10 @@ function NotFound() {
   );
 }
 
-function AppShell() {
+export function AppShell({ initialCart = [], routeComponents = {} }) {
   const { pathname } = useLocation();
-  const [cart, setCart] = useState(() =>
-    JSON.parse(localStorage.getItem("ww-cart") || "[]"),
-  );
+  const [cart, setCart] = useState(initialCart);
+  const [cartStorageReady, setCartStorageReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [products, setProducts] = useState(PRODUCTS);
   const [loading, setLoading] = useState(true);
@@ -2615,10 +2845,21 @@ function AppShell() {
         setCatalogLoaded(true);
       });
   }, [catalogLoaded, pathname]);
-  useEffect(
-    () => localStorage.setItem("ww-cart", JSON.stringify(cart)),
-    [cart],
-  );
+  useEffect(() => {
+    try {
+      const savedCart = JSON.parse(localStorage.getItem("ww-cart") || "[]");
+      if (Array.isArray(savedCart)) setCart(savedCart);
+    } catch {
+      localStorage.removeItem("ww-cart");
+    } finally {
+      setCartStorageReady(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (cartStorageReady) {
+      localStorage.setItem("ww-cart", JSON.stringify(cart));
+    }
+  }, [cart, cartStorageReady]);
   const add = (p) => {
     if (!p.onRequest && p.stock < 1) return;
     const maximum = p.onRequest ? 20 : p.stock;
@@ -2647,6 +2888,24 @@ function AppShell() {
     );
   const clear = () => setCart([]);
   const isAdmin = pathname.startsWith("/admin");
+  // The browser keeps these routes code-split. The server renderer supplies
+  // eager equivalents so generated HTML contains the real page instead of a
+  // Suspense loading placeholder; React then hydrates the same markup.
+  const RouteDiscoveryHub = routeComponents.DiscoveryHub || DiscoveryHub;
+  const RouteBrandsHub = routeComponents.BrandsHub || BrandsHub;
+  const RouteVehiclesHub = routeComponents.VehiclesHub || VehiclesHub;
+  const RouteTyreSizesHub = routeComponents.TyreSizesHub || TyreSizesHub;
+  const RouteGuidesHub = routeComponents.GuidesHub || GuidesHub;
+  const RouteGuideArticle = routeComponents.GuideArticle || GuideArticle;
+  const RouteCommercialLandingPage = routeComponents.CommercialLandingPage || CommercialLandingPage;
+  const RouteBrandLandingPage = routeComponents.BrandLandingPage || BrandLandingPage;
+  const RouteVehicleLandingPage = routeComponents.VehicleLandingPage || VehicleLandingPage;
+  const RouteSizeLandingPage = routeComponents.SizeLandingPage || SizeLandingPage;
+  const RouteAboutPage = routeComponents.AboutPage || AboutPage;
+  const RouteContactPage = routeComponents.ContactPage || ContactPage;
+  const RouteServicesPage = routeComponents.ServicesPage || ServicesPage;
+  const RouteLahoreTyreShopPage = routeComponents.LahoreTyreShopPage || LahoreTyreShopPage;
+  const RouteFAQPage = routeComponents.FAQPage || FAQPage;
   return (
     <>
       <RouteEffects />
@@ -2659,20 +2918,24 @@ function AppShell() {
       <Suspense fallback={<main className="route-loading" role="status">Loading tyre guide…</main>}>
       <Routes>
         <Route path="/" element={<Home add={add} products={products} />} />
-        <Route path="/tyres" element={<DiscoveryHub />} />
-        <Route path="/brands" element={<BrandsHub />} />
-        <Route path="/brands/:slug" element={<BrandLandingPage />} />
-        <Route path="/vehicles" element={<VehiclesHub />} />
-        <Route path="/vehicles/:slug" element={<VehicleLandingPage />} />
-        <Route path="/tyre-sizes" element={<TyreSizesHub />} />
-        <Route path="/tyre-sizes/:slug" element={<SizeLandingPage />} />
-        <Route path="/guides" element={<GuidesHub />} />
-        <Route path="/guides/:slug" element={<GuideArticle />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/services" element={<ServicesPage />} />
-        <Route path="/lahore-tyre-shop" element={<LahoreTyreShopPage />} />
-        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/tyres" element={<RouteDiscoveryHub />} />
+        <Route path="/tyres/japanese" element={<RouteCommercialLandingPage pageKey="japanese-tyres" />} />
+        <Route path="/tyres/chinese" element={<RouteCommercialLandingPage pageKey="chinese-tyres" />} />
+        <Route path="/tyres/premium" element={<RouteCommercialLandingPage pageKey="premium-tyres" />} />
+        <Route path="/rims" element={<RouteCommercialLandingPage pageKey="alloy-rims" />} />
+        <Route path="/brands" element={<RouteBrandsHub />} />
+        <Route path="/brands/:slug" element={<RouteBrandLandingPage />} />
+        <Route path="/vehicles" element={<RouteVehiclesHub />} />
+        <Route path="/vehicles/:slug" element={<RouteVehicleLandingPage />} />
+        <Route path="/tyre-sizes" element={<RouteTyreSizesHub />} />
+        <Route path="/tyre-sizes/:slug" element={<RouteSizeLandingPage />} />
+        <Route path="/guides" element={<RouteGuidesHub />} />
+        <Route path="/guides/:slug" element={<RouteGuideArticle />} />
+        <Route path="/about" element={<RouteAboutPage />} />
+        <Route path="/contact" element={<RouteContactPage />} />
+        <Route path="/services" element={<RouteServicesPage />} />
+        <Route path="/lahore-tyre-shop" element={<RouteLahoreTyreShopPage />} />
+        <Route path="/faq" element={<RouteFAQPage />} />
         <Route
           path="/shop"
           element={<Shop add={add} products={products} loading={loading} />}

@@ -1,4 +1,4 @@
-export const SEO_CONTENT_UPDATED = "2026-09-29";
+export const SEO_CONTENT_UPDATED = "2026-09-30";
 
 export const FITMENT_NOTICE =
   "Tyre sizes can change by model year, trim, import specification, wheel package and previous modification. Confirm the size, load index and speed rating on the vehicle placard or owner's manual, then have the complete fitment checked before purchase.";
@@ -21,7 +21,15 @@ const makeBrand = ({
   summary,
   knownFor,
   exampleFamilies,
-}) => ({
+}) => {
+  const categoryLink = ["dunlop", "yokohama", "bridgestone", "toyo", "falken"].includes(slug)
+    ? { label: "Compare Japanese tyre options", href: "/tyres/japanese" }
+    : ["aplus", "sailun", "linglong", "triangle", "roadx"].includes(slug)
+      ? { label: "Compare Chinese tyre options", href: "/tyres/chinese" }
+      : marketPosition === "Premium"
+        ? { label: "Compare premium tyre options", href: "/tyres/premium" }
+        : null;
+  return ({
   slug,
   name,
   title: `${name} Tyres`,
@@ -36,11 +44,13 @@ const makeBrand = ({
   buyerChecks: COMMON_BUYER_CHECKS,
   availabilityNote: AVAILABILITY_NOTICE,
   relatedLinks: [
+    ...(categoryLink ? [categoryLink] : []),
     { label: "Browse tyre sizes", href: "/tyre-sizes" },
     { label: "Find tyres by vehicle", href: "/vehicles" },
     { label: "Ask for a verified quote", href: "/quote" },
   ],
-});
+  });
+};
 
 export const SEO_BRANDS = [
   makeBrand({
@@ -682,6 +692,12 @@ const guide = ({
   title,
   excerpt,
   readMinutes,
+  category,
+  publishedAt,
+  image,
+  imageAlt,
+  imageCaption,
+  takeaway,
   sections,
   faqs,
   relatedLinks,
@@ -692,8 +708,14 @@ const guide = ({
   metaDescription: excerpt,
   excerpt,
   readMinutes,
+  category,
+  publishedAt,
   updatedAt: SEO_CONTENT_UPDATED,
-  reviewStatus: "Requires final review by the Wheels & Wheels fitment team before publication",
+  author: { name: "Wheels & Wheels tyre team", url: "/about" },
+  image,
+  imageAlt,
+  imageCaption,
+  takeaway,
   sections,
   faqs,
   relatedLinks,
@@ -703,6 +725,12 @@ export const GUIDES = [
   guide({
     slug: "how-to-choose-the-right-tyre-size-pakistan",
     title: "How to Choose the Right Tyre Size in Pakistan",
+    category: "TYRE SIZE & FITMENT",
+    publishedAt: "2026-09-30",
+    image: "/tyre.jpg",
+    imageAlt: "Representative stack of passenger tyres for a tyre-size guide",
+    imageCaption: "Representative tyres. Read the complete sidewall specification on the exact tyre and verify it against the vehicle before purchase.",
+    takeaway: "Start with the vehicle placard and complete sidewall code; rim diameter alone cannot approve a tyre.",
     excerpt:
       "A practical way to read a tyre size, find the vehicle's approved specification and evaluate an alternate without relying on guesswork.",
     readMinutes: 7,
@@ -772,6 +800,12 @@ export const GUIDES = [
   guide({
     slug: "chinese-vs-japanese-vs-premium-tyres-lahore",
     title: "Chinese, Japanese or Premium Tyres: A Lahore Buyer's Framework",
+    category: "TYRE BUYING",
+    publishedAt: "2026-09-30",
+    image: "/tyre.jpg",
+    imageAlt: "Representative stack of passenger tyres for comparing tyre categories",
+    imageCaption: "Representative tyres. Compare exact patterns and specifications rather than relying on origin or price alone.",
+    takeaway: "Country and price are only context; compare the exact pattern, specification, condition and support.",
     excerpt:
       "Compare tyre options by verified specification, pattern, condition and support instead of assuming that country or price alone determines quality.",
     readMinutes: 8,
@@ -842,6 +876,12 @@ export const GUIDES = [
   guide({
     slug: "verify-fresh-genuine-tyres-lahore",
     title: "How to Check a Tyre Before Buying in Lahore",
+    category: "TYRE INSPECTION",
+    publishedAt: "2026-09-30",
+    image: "/tyreinstallation.jpg",
+    imageAlt: "Tyre inspection during professional installation",
+    imageCaption: "Inspect the physical tyre, sidewall markings and invoice details before accepting supply.",
+    takeaway: "Verify the exact physical tyre, its markings and seller documentation—not a catalogue photo alone.",
     excerpt:
       "Use the sidewall, physical condition, invoice and written terms to verify the exact tyre instead of relying on packaging or a verbal fresh-stock claim.",
     readMinutes: 7,
@@ -906,6 +946,12 @@ export const GUIDES = [
   guide({
     slug: "wheel-alignment-vs-balancing-lahore",
     title: "Wheel Alignment vs Balancing: What Lahore Drivers Need",
+    category: "WHEEL CARE",
+    publishedAt: "2026-09-30",
+    image: "/wheelalignment.jpeg",
+    imageAlt: "Computerised wheel alignment inspection in Lahore",
+    imageCaption: "Alignment corrects wheel angles; balancing corrects rotating weight distribution.",
+    takeaway: "Alignment and balancing solve different problems, so diagnose the symptom before choosing a service.",
     excerpt:
       "Learn which service addresses pulling and uneven wear, which addresses speed-related vibration, and when a tyre or suspension inspection should come first.",
     readMinutes: 6,
@@ -978,6 +1024,12 @@ export const GUIDES = [
   guide({
     slug: "lahore-summer-monsoon-tyre-checklist",
     title: "Lahore Summer and Monsoon Tyre Checklist",
+    category: "SEASONAL TYRE CARE",
+    publishedAt: "2026-09-30",
+    image: "/wheel.jpg",
+    imageAlt: "Representative tyre and wheel for a seasonal tyre-care guide",
+    imageCaption: "Representative image. Pressure, tread, damage and the spare deserve a repeatable seasonal check.",
+    takeaway: "Check pressure cold, inspect tread and damage, and include the spare before extreme heat or heavy rain.",
     excerpt:
       "A seasonal inspection routine for pressure, tread, damage, alignment and emergency equipment before Lahore heat or heavy rain exposes a weak tyre.",
     readMinutes: 7,
@@ -1047,6 +1099,12 @@ export const GUIDES = [
   guide({
     slug: "195-65-r15-tyre-guide-pakistan",
     title: "195/65 R15 Tyres in Pakistan: A Practical Buying Guide",
+    category: "POPULAR TYRE SIZE",
+    publishedAt: "2026-09-30",
+    image: "/15inch.png",
+    imageAlt: "Representative passenger tyre and alloy wheel for a 195/65 R15 guide",
+    imageCaption: "Representative image only. For 195/65 R15, load and speed markings still need verification on the exact tyre.",
+    takeaway: "Use 195/65 R15 only where the vehicle specification approves it, then compare equal ratings and patterns.",
     excerpt:
       "Understand the 195/65 R15 marking, compare exact specifications and request a useful quote without assuming that every 15-inch car uses this size.",
     readMinutes: 7,
