@@ -2,11 +2,12 @@ import nodemailer from "nodemailer";
 
 const recipient = () =>
   process.env.NOTIFICATION_EMAIL || "wheelsandwheelsinfo@gmail.com";
+const sender = () => process.env.SMTP_USER || recipient();
 
 let cachedTransport;
 
 export const emailDeliveryConfigured = () =>
-  Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+  Boolean(sender() && process.env.SMTP_PASS);
 
 export const closeNotificationTransport = () => {
   cachedTransport?.close();
@@ -20,7 +21,7 @@ function transport() {
     host: process.env.SMTP_HOST || "smtp.gmail.com",
     port: Number(process.env.SMTP_PORT || 465),
     secure: String(process.env.SMTP_SECURE || "true") === "true",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    auth: { user: sender(), pass: process.env.SMTP_PASS },
     pool: true,
     maxConnections: 2,
     maxMessages: 50,
@@ -55,7 +56,7 @@ export async function sendNotification({ subject, heading, fields, replyTo, to }
     )
     .join("");
   const delivery = await mailer.sendMail({
-    from: `Wheels & Wheels Website <${process.env.SMTP_USER}>`,
+    from: `Wheels & Wheels Website <${sender()}>`,
     to: safeHeader(to || recipient()),
     replyTo: replyTo ? safeHeader(replyTo) : undefined,
     subject: safeHeader(subject),
