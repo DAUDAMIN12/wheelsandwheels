@@ -46,6 +46,36 @@ function formatDate(value) {
   }).format(date);
 }
 
+function GuideImageCredit({ credit }) {
+  if (!credit) return null;
+  if (typeof credit === "string") {
+    return <span className="guide-image-credit">Photo: {credit}</span>;
+  }
+
+  const label = credit.photographer || credit.sourceLabel || credit.label || credit.name || "Image source";
+  const sourceUrl = credit.url || credit.sourceUrl;
+  const licenseLabel = credit.licenseName || credit.license;
+  const licenseUrl = credit.licenseUrl;
+
+  return (
+    <span className="guide-image-credit">
+      Photo:{" "}
+      {sourceUrl ? (
+        <a href={sourceUrl} target="_blank" rel="noreferrer">{label}</a>
+      ) : label}
+      {licenseLabel && (
+        <>
+          {" · "}
+          {licenseUrl ? (
+            <a href={licenseUrl} target="_blank" rel="noreferrer">{licenseLabel}</a>
+          ) : licenseLabel}
+        </>
+      )}
+      {credit.modified && <> · cropped for layout</>}
+    </span>
+  );
+}
+
 function GuideTable({ table, title }) {
   if (!table) return null;
   const headers = table.headers || table.columns || [];
@@ -208,10 +238,21 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
           <figure className="guide-cover">
             <img
               src={guide.image}
-              alt={guide.imageAlt || guide.title}
+              srcSet={guide.imageSmall ? `${guide.imageSmall} 960w, ${guide.image} 1600w` : undefined}
+              sizes={guide.imageSmall ? "(max-width: 600px) 100vw, (max-width: 1168px) calc(100vw - 48px), 1120px" : undefined}
+              alt={guide.imageAlt || `Illustration for ${guide.title}`}
+              width="1600"
+              height="900"
               fetchPriority="high"
+              decoding="async"
+              style={guide.imagePosition ? { objectPosition: guide.imagePosition } : undefined}
             />
-            {guide.imageCaption && <figcaption>{guide.imageCaption}</figcaption>}
+            {(guide.imageCaption || guide.imageCredit) && (
+              <figcaption>
+                {guide.imageCaption && <span>{guide.imageCaption}</span>}
+                <GuideImageCredit credit={guide.imageCredit} />
+              </figcaption>
+            )}
           </figure>
         )}
 

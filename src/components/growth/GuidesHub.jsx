@@ -41,15 +41,27 @@ function formatDate(value) {
 
 export function GuideCard({ guide, featured = false }) {
   const excerpt = guide.excerpt || guide.summary || guide.metaDescription;
+  const imageSrcSet = guide.imageSmall
+    ? `${guide.imageSmall} 960w, ${guide.image} 1600w`
+    : undefined;
+  const imageSizes = featured
+    ? "(max-width: 600px) calc(100vw - 28px), (max-width: 900px) calc(100vw - 48px), 1240px"
+    : "(max-width: 600px) calc(100vw - 28px), (max-width: 900px) calc(50vw - 31px), 400px";
   return (
     <article className={`guide-card${featured ? " guide-card--featured" : ""}`}>
       {guide.image && (
         <Link className="guide-card-media" to={guidePath(guide)} tabIndex={-1} aria-hidden="true">
           <img
             src={guide.image}
+            srcSet={imageSrcSet}
+            sizes={imageSrcSet ? imageSizes : undefined}
             alt=""
+            width="1600"
+            height="900"
             loading={featured ? "eager" : "lazy"}
             fetchPriority={featured ? "high" : "auto"}
+            decoding="async"
+            style={guide.imagePosition ? { objectPosition: guide.imagePosition } : undefined}
           />
         </Link>
       )}
