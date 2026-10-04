@@ -7,6 +7,7 @@ import DiscoveryHub, {
   VehiclesHub,
 } from "./components/growth/DiscoveryHub.jsx";
 import GuidesHub from "./components/growth/GuidesHub.jsx";
+import GuideTopicPage from "./components/growth/GuideTopicPage.jsx";
 import GuideArticle from "./components/growth/GuideArticle.jsx";
 import CommercialLandingPage from "./components/growth/CommercialLandingPage.jsx";
 import {
@@ -31,6 +32,7 @@ const routeComponents = {
   DiscoveryHub,
   FAQPage,
   GuideArticle,
+  GuideTopicPage,
   GuidesHub,
   LahoreTyreShopPage,
   ServicesPage,

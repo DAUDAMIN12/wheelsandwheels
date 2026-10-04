@@ -148,6 +148,9 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
   const faq = list(guide.faqs || guide.faq);
   const related = list(guide.relatedLinks || guide.related);
   const updatedAt = guide.updatedAt || guide.dateModified;
+  const topic = guide.topicSlug && typeof seoContent.getGuideTopic === "function"
+    ? seoContent.getGuideTopic(guide.topicSlug)
+    : null;
   const authorName =
     typeof guide.author === "object"
       ? guide.author.name || "Wheels & Wheels team"
@@ -155,6 +158,7 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
   const breadcrumbs = [
     { name: "Home", path: "/" },
     { name: "Blog and tyre guides", path: "/guides" },
+    ...(topic ? [{ name: topic.name, path: topic.path }] : []),
     { name: guide.title, path },
   ];
   const question = `Hi Wheels & Wheels, I read “${guide.title}” and need help with my vehicle. My current tyre size is: `;
@@ -183,6 +187,7 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
         <ol>
           <li><Link to="/">Home</Link></li>
           <li><Link to="/guides">Blog and tyre guides</Link></li>
+          {topic && <li><Link to={topic.path}>{topic.name}</Link></li>}
           <li><span aria-current="page">{guide.title}</span></li>
         </ol>
       </nav>

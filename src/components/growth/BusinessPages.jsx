@@ -20,15 +20,6 @@ const ADDRESS =
 const MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ADDRESS)}`;
 const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/$/, "");
 
-const OPENING_DAYS = [
-  "https://schema.org/Monday",
-  "https://schema.org/Tuesday",
-  "https://schema.org/Wednesday",
-  "https://schema.org/Thursday",
-  "https://schema.org/Friday",
-  "https://schema.org/Saturday",
-];
-
 const SERVICES = [
   {
     slug: "tyre-installation",
@@ -53,48 +44,6 @@ const SERVICES = [
 function absoluteUrl(path) {
   if (!SITE_URL) return undefined;
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
-}
-
-function localBusinessSchema(description) {
-  const url = absoluteUrl("/");
-  return {
-    "@context": "https://schema.org",
-    "@type": "AutomotiveBusiness",
-    ...(url ? { "@id": `${url}#business`, url } : {}),
-    name: "Wheels & Wheels",
-    description,
-    telephone: [SALES_PHONE, SECOND_PHONE],
-    email: EMAIL,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress:
-        "Old Tyre Market, near Rawali Cinema and Railway Station, Aslam Khan Road",
-      addressLocality: "Lahore",
-      addressCountry: "PK",
-    },
-    areaServed: {
-      "@type": "City",
-      name: "Lahore",
-    },
-    openingHoursSpecification: {
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: OPENING_DAYS,
-      opens: "12:00",
-      closes: "21:00",
-    },
-    contactPoint: [
-      {
-        "@type": "ContactPoint",
-        telephone: SALES_PHONE,
-        contactType: "sales",
-      },
-      {
-        "@type": "ContactPoint",
-        telephone: SECOND_PHONE,
-        contactType: "customer service",
-      },
-    ],
-  };
 }
 
 function serviceSchemas() {
@@ -313,11 +262,6 @@ export function AboutPage() {
         description="Learn how Wheels & Wheels helps Lahore customers enquire about tyres, alloy rims, installation, balancing and alignment through direct, current-rate support."
         canonical="/about"
         breadcrumbs={breadcrumbs}
-        schemas={[
-          localBusinessSchema(
-            "A Lahore tyre and rim business offering current-rate enquiries and wheel services.",
-          ),
-        ]}
       />
       <Breadcrumbs items={breadcrumbs} />
       <PageHero
@@ -395,11 +339,6 @@ export function ContactPage() {
         canonical="/contact"
         breadcrumbs={breadcrumbs}
         faq={CONTACT_FAQ}
-        schemas={[
-          localBusinessSchema(
-            "Contact Wheels & Wheels in Lahore for current tyre, rim and wheel-service rates.",
-          ),
-        ]}
       />
       <Breadcrumbs items={breadcrumbs} />
       <PageHero
@@ -503,11 +442,6 @@ export function LahoreTyreShopPage() {
         canonical="/lahore-tyre-shop"
         breadcrumbs={breadcrumbs}
         faq={localFaq}
-        schemas={[
-          localBusinessSchema(
-            "A Lahore tyre and alloy rim shop offering current-rate enquiries, tyre installation, wheel balancing and wheel alignment.",
-          ),
-        ]}
       />
       <Breadcrumbs items={breadcrumbs} />
       <PageHero

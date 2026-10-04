@@ -16,6 +16,14 @@ function getGuides() {
   return Object.entries(collection).map(([slug, guide]) => ({ slug, ...guide }));
 }
 
+function getTopics() {
+  const candidates = [seoContent.GUIDE_TOPICS, seoContent.default?.GUIDE_TOPICS];
+  const collection = candidates.find((value) => value && typeof value === "object");
+  if (Array.isArray(collection)) return collection;
+  if (!collection) return [];
+  return Object.entries(collection).map(([slug, topic]) => ({ slug, ...topic }));
+}
+
 function guidePath(guide) {
   return guide.path || guide.href || `/guides/${guide.slug}`;
 }
@@ -31,7 +39,7 @@ function formatDate(value) {
   }).format(date);
 }
 
-function GuideCard({ guide, featured = false }) {
+export function GuideCard({ guide, featured = false }) {
   const excerpt = guide.excerpt || guide.summary || guide.metaDescription;
   return (
     <article className={`guide-card${featured ? " guide-card--featured" : ""}`}>
@@ -67,6 +75,7 @@ function GuideCard({ guide, featured = false }) {
 
 export default function GuidesHub() {
   const guides = getGuides();
+  const topics = getTopics();
   const [featured, ...remaining] = guides;
   const breadcrumbs = [
     { name: "Home", path: "/" },
@@ -113,6 +122,31 @@ export default function GuidesHub() {
         </div>
         <FaBookOpen className="growth-hero-icon" aria-hidden="true" />
       </header>
+
+      {!!topics.length && (
+        <section className="guide-topics section" aria-labelledby="guide-topics-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">EXPLORE BY TOPIC</p>
+              <h2 id="guide-topics-title">Start with the question you need answered</h2>
+              <p>Each topic page groups related articles and links into the relevant size, vehicle, brand and service pages.</p>
+            </div>
+          </div>
+          <div className="guide-topic-grid">
+            {topics.map((topic, index) => (
+              <article key={topic.slug} className="guide-topic-card">
+                <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <p className="eyebrow">{topic.count} GUIDES</p>
+                <h2><Link to={topic.path}>{topic.name}</Link></h2>
+                <p>{topic.description}</p>
+                <Link className="guide-read-link" to={topic.path}>
+                  Open topic <FaChevronRight aria-hidden="true" />
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {featured ? (
         <section className="guides-list section" aria-labelledby="latest-guides-title">

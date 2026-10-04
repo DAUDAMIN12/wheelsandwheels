@@ -2,11 +2,13 @@ import "dotenv/config";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  GUIDE_TOPICS,
   GUIDES,
   SEO_BRANDS,
   SEO_CONTENT_UPDATED,
   SEO_SIZES,
   SEO_VEHICLES,
+  TYRE_RIM_HUBS,
 } from "../src/Data/seoContent.js";
 import { COMMERCIAL_PAGES } from "../src/Data/commercialPages.js";
 import PRODUCTS from "../src/Data/productsData.js";
@@ -217,6 +219,26 @@ const sizePages = SEO_SIZES.map((item) => ({
     { title: "Fitment reminder", text: item.verificationNote },
   ],
   faqs: item.faqs || [],
+  updatedAt: SEO_CONTENT_UPDATED,
+}));
+
+const rimHubPages = TYRE_RIM_HUBS.map((item) => ({
+  route: item.path,
+  title: item.seoTitle || item.title,
+  description: item.metaDescription || item.summary,
+  h1: item.heroTitle || item.title,
+  intro: item.summary,
+  sections: item.sections?.map((section) => ({
+    title: section.heading,
+    text: [
+      ...(section.paragraphs || []),
+      ...(section.bullets || []),
+    ].join(" "),
+  })),
+  faqs: item.faqs || [],
+  noIndex: Boolean(item.noIndex),
+  excludeFromSitemap: Boolean(item.noIndex),
+  updatedAt: SEO_CONTENT_UPDATED,
 }));
 
 const guidePages = GUIDES.map((item) => ({
@@ -238,6 +260,29 @@ const guidePages = GUIDES.map((item) => ({
   publishedAt: item.publishedAt,
   updatedAt: item.updatedAt,
   author: item.author,
+}));
+
+const guideTopicPages = GUIDE_TOPICS.map((item) => ({
+  route: item.path,
+  title: item.seoTitle || item.title,
+  description: item.description,
+  h1: item.heroTitle || item.title,
+  intro: item.intro,
+  sections: item.guides.map((guideItem) => ({
+    title: guideItem.title,
+    text: guideItem.excerpt,
+  })),
+  faqs: [
+    {
+      question: `What is covered in ${item.name.toLowerCase()}?`,
+      answer: item.description,
+    },
+    {
+      question: "Does a guide confirm the correct tyre for my car?",
+      answer: "No. Confirm the exact vehicle, complete size, ratings and wheel fitment before purchase.",
+    },
+  ],
+  updatedAt: item.updatedAt || SEO_CONTENT_UPDATED,
 }));
 
 const commercialPages = COMMERCIAL_PAGES.map((item) => ({
@@ -328,8 +373,10 @@ const pages = [
   ...staticPages,
   ...brandPages,
   ...vehiclePages,
+  ...rimHubPages,
   ...sizePages,
   ...commercialPages,
+  ...guideTopicPages,
   ...guidePages,
   ...servicePages,
   ...productPages,
@@ -339,27 +386,16 @@ function structuredData(page, canonical) {
   const imageUrl = page.image
     ? `${siteUrl}${page.image.startsWith("/") ? page.image : `/${page.image}`}`
     : `${siteUrl}/wheelpic.jpg`;
-  const schemas = [
+  return [
     {
       "@context": "https://schema.org",
-      "@type": page.article ? "Article" : "WebPage",
+      "@type": "WebPage",
       "@id": `${canonical}#webpage`,
       name: page.h1,
-      headline: page.article ? page.h1 : undefined,
       description: page.description,
       url: canonical,
       image: imageUrl,
-      datePublished: page.article ? page.publishedAt : undefined,
       dateModified: page.updatedAt || undefined,
-      author: page.article
-        ? {
-            "@type": "Organization",
-            name: page.author?.name || "Wheels & Wheels tyre team",
-            url: page.author?.url
-              ? `${siteUrl}${page.author.url.startsWith("/") ? page.author.url : `/${page.author.url}`}`
-              : `${siteUrl}/about`,
-          }
-        : undefined,
       publisher: {
         "@type": "Organization",
         name: "Wheels & Wheels",
@@ -371,22 +407,6 @@ function structuredData(page, canonical) {
       },
     },
   ];
-  if (page.faqs?.length) {
-    schemas.push({
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: page.faqs.map((item) => ({
-        "@type": "Question",
-        name: item.question || item.q,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: item.answer || item.a,
-        },
-      })),
-    });
-  }
-  schemas.push(...(page.schemas || []));
-  return schemas;
 }
 
 for (const page of pages) {
@@ -497,7 +517,7 @@ const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://w
   .filter((page) => !page.excludeFromSitemap)
   .map(
     (page) =>
-      `  <url><loc>${siteUrl}${page.route === "/" ? "" : page.route}</loc><lastmod>${page.updatedAt || SEO_CONTENT_UPDATED}</lastmod><changefreq>${page.route.startsWith("/guides/") ? "monthly" : "weekly"}</changefreq><priority>${page.route === "/" ? "1.0" : page.route.split("/").length === 2 ? "0.9" : "0.7"}</priority></url>`,
+      `  <url><loc>${siteUrl}${page.route === "/" ? "" : page.route}</loc><lastmod>${page.updatedAt || SEO_CONTENT_UPDATED}</lastmod></url>`,
   )
   .join("\n")}\n</urlset>\n`;
 await writeFile(path.join(dist, "sitemap.xml"), sitemap, "utf8");

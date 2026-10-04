@@ -1,5 +1,12 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  GUIDE_TOPICS,
+  GUIDES,
+  SEO_SIZES,
+  TYRE_RIM_HUBS,
+} from "../src/Data/seoContent.js";
+import TYRE_SIZE_MANIFEST from "../src/Data/tyreSizeManifest.js";
 
 const dist = path.resolve("dist");
 const failures = [];
@@ -23,15 +30,37 @@ const robots = await read(path.join(dist, "robots.txt"));
 const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(
   (match) => match[1],
 );
+const sitemapPaths = new Set(locations.map((location) => new URL(location).pathname || "/"));
+const requiredHierarchyPaths = [
+  ...SEO_SIZES.map((item) => item.path || `/tyre-sizes/${item.slug}`),
+  ...TYRE_RIM_HUBS.filter((item) => !item.noIndex).map((item) => item.path),
+  ...GUIDES.map((item) => item.path || `/guides/${item.slug}`),
+  ...GUIDE_TOPICS.map((item) => item.path),
+];
+const manifestSizePaths = new Set(TYRE_SIZE_MANIFEST.map((item) => item.path));
+const publishedSizePaths = new Set(SEO_SIZES.map((item) => item.path));
 
 assert(locations.length >= 50, "The sitemap contains too few indexable pages");
 assert(new Set(locations).size === locations.length, "Duplicate sitemap URLs found");
+assert(
+  manifestSizePaths.size === publishedSizePaths.size &&
+    [...manifestSizePaths].every((item) => publishedSizePaths.has(item)),
+  "Published tyre-size pages do not exactly match the supported size manifest",
+);
+requiredHierarchyPaths.forEach((requiredPath) => {
+  assert(sitemapPaths.has(requiredPath), `Missing hierarchy URL from sitemap: ${requiredPath}`);
+});
+TYRE_RIM_HUBS.filter((item) => item.noIndex).forEach((item) => {
+  assert(!sitemapPaths.has(item.path), `Noindex diameter hub leaked into sitemap: ${item.path}`);
+});
 assert(/Disallow:\s*\/admin/i.test(robots), "robots.txt must block /admin");
 assert(/Disallow:\s*\/api\//i.test(robots), "robots.txt must block /api/");
 assert(/Sitemap:\s*https?:\/\/[^\s]+\/sitemap\.xml/i.test(robots), "robots.txt is missing the absolute sitemap URL");
 
 const seenTitles = new Map();
 const seenCanonicals = new Map();
+const inboundLinks = new Map();
+const contentFingerprints = new Map();
 
 const internalPageLinks = (html) => {
   const links = [...html.matchAll(/<a\b[^>]*\bhref=(?:"([^"]+)"|'([^']+)')[^>]*>/gi)]
@@ -60,6 +89,11 @@ for (const location of locations) {
   const canonical = html.match(/<link rel="canonical" href="(.*?)"\s*\/>/s)?.[1];
   const schemas = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
 
+  assert(
+    [...html.matchAll(/<link rel="canonical"/g)].length === 1,
+    `Expected exactly one canonical tag on ${url.pathname}`,
+  );
+
   assert(Boolean(title), `Missing title on ${url.pathname}`);
   assert(Boolean(canonical), `Missing canonical on ${url.pathname}`);
   assert(canonical === location, `Canonical mismatch on ${url.pathname}`);
@@ -76,6 +110,11 @@ for (const location of locations) {
     `Temporary SEO placeholder markup found on ${url.pathname}`,
   );
   const internalLinks = internalPageLinks(html);
+  internalLinks.forEach((href) => {
+    const normalized = href.length > 1 ? href.replace(/\/$/, "") : href;
+    if (!inboundLinks.has(normalized)) inboundLinks.set(normalized, new Set());
+    inboundLinks.get(normalized).add(url.pathname);
+  });
   assert(
     internalLinks.size >= 5,
     `Too few meaningful internal page links on ${url.pathname}: found ${internalLinks.size}, expected at least 5`,
@@ -91,14 +130,55 @@ for (const location of locations) {
     assert(!other, `Duplicate canonical on ${other} and ${url.pathname}`);
     seenCanonicals.set(canonical, url.pathname);
   }
+  const schemaFingerprints = new Map();
+  const schemaIdentity = new Map();
   schemas.forEach((schema, index) => {
     try {
-      JSON.parse(schema[1]);
+      const parsed = JSON.parse(schema[1]);
+      const fingerprint = JSON.stringify(parsed);
+      const previousFingerprint = schemaFingerprints.get(fingerprint);
+      assert(
+        previousFingerprint === undefined,
+        `Duplicate JSON-LD block ${previousFingerprint + 1} and ${index + 1} on ${url.pathname}`,
+      );
+      schemaFingerprints.set(fingerprint, index);
+      if (parsed?.["@id"]) {
+        const identity = `${parsed["@type"] || "Thing"}|${parsed["@id"]}`;
+        const previousIdentity = schemaIdentity.get(identity);
+        assert(
+          previousIdentity === undefined,
+          `Duplicate JSON-LD identity ${identity} on ${url.pathname}`,
+        );
+        schemaIdentity.set(identity, index);
+      }
     } catch {
       failures.push(`Invalid JSON-LD block ${index + 1} on ${url.pathname}`);
     }
   });
+
+  const mainText = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<header[\s\S]*?<\/header>/gi, " ")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z0-9#]+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  if (mainText.length > 300) {
+    const previousPath = contentFingerprints.get(mainText);
+    assert(!previousPath, `Exact duplicate main content on ${previousPath} and ${url.pathname}`);
+    contentFingerprints.set(mainText, url.pathname);
+  }
 }
+
+requiredHierarchyPaths.forEach((requiredPath) => {
+  assert(
+    (inboundLinks.get(requiredPath)?.size || 0) > 0,
+    `Hierarchy page has no crawlable inbound link: ${requiredPath}`,
+  );
+});
 
 for (const relative of ["404.html", "product-fallback.html", "admin/index.html", "quote/index.html"]) {
   const file = path.join(dist, relative);

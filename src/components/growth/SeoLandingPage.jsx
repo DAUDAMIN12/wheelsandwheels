@@ -9,18 +9,21 @@ const COLLECTION_KEYS = {
   brand: ["SEO_BRANDS", "BRAND_PAGES", "brandPages", "brands"],
   vehicle: ["SEO_VEHICLES", "VEHICLE_PAGES", "vehiclePages", "vehicles"],
   size: ["SEO_SIZES", "SIZE_PAGES", "sizePages", "sizes"],
+  rim: ["TYRE_RIM_HUBS", "rimHubs"],
 };
 
 const VARIANT_LABELS = {
   brand: "Tyres by brand",
   vehicle: "Tyres by vehicle",
   size: "Tyres by size",
+  rim: "Tyres by wheel diameter",
 };
 
 const VARIANT_ROOTS = {
   brand: "/brands",
   vehicle: "/vehicles",
   size: "/tyre-sizes",
+  rim: "/tyre-sizes",
 };
 
 function slugify(value = "") {
@@ -168,6 +171,74 @@ function RelatedLinks({ items, variant }) {
           );
         })}
       </div>
+    </section>
+  );
+}
+
+function SizeEntityDirectory({ content, variant, name, quoteUrl }) {
+  if (variant === "rim") {
+    const sizes = stringList(content.sizes);
+    if (!sizes.length) return null;
+    return (
+      <section className="growth-size-options section" aria-labelledby="rim-size-options-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">EXACT SIZE PAGES</p>
+            <h2 id="rim-size-options-title">Choose the complete tyre size.</h2>
+          </div>
+          <p>Each page explains the full sidewall code and links only to references present in our current data.</p>
+        </div>
+        <div className="growth-size-option-grid">
+          {sizes.map((item) => (
+            <Link key={item.path} to={item.path}>
+              <small>R{item.rim} DIRECTORY</small>
+              <strong>{item.size}</strong>
+              <span>Open fitment guide <FaChevronRight aria-hidden="true" /></span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (variant !== "size") return null;
+  const references = stringList(content.catalogueReferences);
+  return (
+    <section className="growth-catalogue-evidence section" aria-labelledby="size-catalogue-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">CURRENT CATALOGUE REFERENCES</p>
+          <h2 id="size-catalogue-title">Options connected to {name}.</h2>
+        </div>
+        <p>These entries confirm catalogue coverage, not live stock or universal vehicle fitment. Ask for the exact current item before buying.</p>
+      </div>
+      {references.length ? (
+        <div className="growth-catalogue-grid">
+          {references.map((item) => (
+            <article key={item.slug}>
+              <Link className="growth-catalogue-image" to={`/product/${item.slug}`}>
+                <img src={item.image || "/tyre.jpg"} alt={`${item.name} ${name}`} loading="lazy" decoding="async" />
+              </Link>
+              <div>
+                <p className="eyebrow">{item.brand} · {name}</p>
+                <h3><Link to={`/product/${item.slug}`}>{item.name}</Link></h3>
+                <p>{item.vehicle || "Vehicle fitment confirmed before supply"}</p>
+                <Link className="guide-read-link" to={`/product/${item.slug}`}>
+                  View specification <FaChevronRight aria-hidden="true" />
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="growth-sourcing-panel">
+          <div>
+            <strong>Need this exact size?</strong>
+            <p>No named product is attached to this page yet. Send the size and vehicle for a current sourcing check.</p>
+          </div>
+          <Link className="primary" to={quoteUrl}>Request current options</Link>
+        </div>
+      )}
     </section>
   );
 }
@@ -331,6 +402,7 @@ export default function SeoLandingPage({ variant = "brand", slug: slugProp, cont
         description={description}
         canonical={path}
         image={content.ogImage || content.image || "/tyre.jpg"}
+        noIndex={Boolean(content.noIndex)}
         breadcrumbs={breadcrumbs}
         faq={faq}
       />
@@ -411,6 +483,13 @@ export default function SeoLandingPage({ variant = "brand", slug: slugProp, cont
         </section>
       )}
 
+      <SizeEntityDirectory
+        content={content}
+        variant={variant}
+        name={name}
+        quoteUrl={quoteUrl}
+      />
+
       <div className="growth-article-body section">
         {sections.map((section, index) => (
           <SectionBlock
@@ -466,5 +545,14 @@ export function VehicleLandingPage(props) {
 }
 
 export function SizeLandingPage(props) {
+  const params = useParams();
+  const requestedSlug = props.slug || params.slug || "";
+  const rimHub =
+    typeof seoContent.getRimHubBySlug === "function"
+      ? seoContent.getRimHubBySlug(requestedSlug)
+      : null;
+  if (rimHub) {
+    return <SeoLandingPage {...props} content={rimHub} variant="rim" />;
+  }
   return <SeoLandingPage {...props} variant="size" />;
 }

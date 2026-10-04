@@ -1,4 +1,7 @@
-export const SEO_CONTENT_UPDATED = "2026-09-30";
+import PRODUCTS from "./productsData.js";
+import { TYRE_SIZE_MANIFEST } from "./tyreSizeManifest.js";
+
+export const SEO_CONTENT_UPDATED = "2026-10-04";
 
 export const FITMENT_NOTICE =
   "Tyre sizes can change by model year, trim, import specification, wheel package and previous modification. Confirm the size, load index and speed rating on the vehicle placard or owner's manual, then have the complete fitment checked before purchase.";
@@ -22,7 +25,7 @@ const makeBrand = ({
   knownFor,
   exampleFamilies,
 }) => {
-  const categoryLink = ["dunlop", "yokohama", "bridgestone", "toyo", "falken"].includes(slug)
+  const categoryLink = ["dunlop", "yokohama", "bridgestone", "toyo", "falken", "nitto"].includes(slug)
     ? { label: "Compare Japanese tyre options", href: "/tyres/japanese" }
     : ["aplus", "sailun", "linglong", "triangle", "roadx"].includes(slug)
       ? { label: "Compare Chinese tyre options", href: "/tyres/chinese" }
@@ -133,6 +136,16 @@ export const SEO_BRANDS = [
       "Falken sells passenger-car, performance and SUV tyre ranges. Availability is fitment-specific, particularly for larger wheels and lower-profile sizes.",
     knownFor: ["Performance ranges", "Touring tyres", "SUV and all-terrain ranges"],
     exampleFamilies: ["Azenis", "ZIEX", "Wildpeak"],
+  }),
+  makeBrand({
+    slug: "nitto",
+    name: "Nitto",
+    brandOrigin: "Japanese brand; manufacturing country varies by product and market",
+    marketPosition: "Mid-range to premium",
+    summary:
+      "Nitto offers passenger, performance, SUV and all-terrain tyre families in selected fitments. Large-diameter availability is size-specific, so confirm the exact pattern, ratings and production details.",
+    knownFor: ["Performance tyres", "SUV road tyres", "All-terrain and off-road ranges"],
+    exampleFamilies: ["NT420V", "NT555", "Terra Grappler"],
   }),
   makeBrand({
     slug: "aplus",
@@ -540,7 +553,7 @@ const makeSize = ({ slug, size, width, aspectRatio, rim, summary, applications }
   ],
 });
 
-export const SEO_SIZES = [
+const CURATED_SEO_SIZES = [
   makeSize({
     slug: "145-70-r12",
     size: "145/70 R12",
@@ -687,12 +700,368 @@ export const SEO_SIZES = [
   }),
 ];
 
+const TYRE_SIZE_PATTERN = /^(\d{3})\s*\/\s*(\d{2})\s*R\s*(\d{2})$/i;
+
+const parseTyreSize = (value = "") => {
+  const match = String(value).trim().match(TYRE_SIZE_PATTERN);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const aspectRatio = Number(match[2]);
+  const rim = Number(match[3]);
+  return {
+    width,
+    aspectRatio,
+    rim,
+    size: `${width}/${aspectRatio} R${rim}`,
+    slug: `${width}-${aspectRatio}-r${rim}`,
+  };
+};
+
+const uniqueBy = (items, keyFor) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = keyFor(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const vehicleReferencesBySize = new Map();
+SEO_VEHICLES.forEach((vehicle) => {
+  vehicle.commonSizes.forEach((entry) => {
+    const parsed = parseTyreSize(entry.size);
+    if (!parsed) return;
+    const current = vehicleReferencesBySize.get(parsed.slug) || [];
+    current.push({
+      name: vehicle.name,
+      slug: vehicle.slug,
+      context: entry.context,
+      note: entry.note,
+    });
+    vehicleReferencesBySize.set(parsed.slug, current);
+  });
+});
+
+const catalogueReferencesBySize = new Map();
+PRODUCTS.filter((product) => String(product.category).toLowerCase() === "tyres").forEach(
+  (product) => {
+    const parsed = parseTyreSize(product.size);
+    if (!parsed) return;
+    const current = catalogueReferencesBySize.get(parsed.slug) || [];
+    current.push({
+      name: product.title,
+      slug: product.slug,
+      brand: product.brand,
+      vehicle: product.vehicle,
+      image: product.image || "/tyre.jpg",
+      origin: product.origin,
+    });
+    catalogueReferencesBySize.set(parsed.slug, current);
+  },
+);
+
+const rawSizePages = new Map();
+CURATED_SEO_SIZES.forEach((item) => rawSizePages.set(item.slug, item));
+
+const registerReferenceSize = (value) => {
+  const parsed = parseTyreSize(value);
+  if (!parsed || rawSizePages.has(parsed.slug)) return;
+  rawSizePages.set(parsed.slug, makeSize({
+    ...parsed,
+    summary: `${parsed.size} combines a ${parsed.width} mm nominal width, a ${parsed.aspectRatio} profile and a ${parsed.rim}-inch wheel. It appears in our current catalogue or vehicle-reference data, but the exact vehicle, ratings and availability still need confirmation.`,
+    applications: [],
+  }));
+};
+
+TYRE_SIZE_MANIFEST.forEach((item) => registerReferenceSize(item.size));
+
+const baseSizePages = [...rawSizePages.values()].sort(
+  (a, b) => a.rim - b.rim || a.width - b.width || a.aspectRatio - b.aspectRatio,
+);
+
+const formatMillimetres = (value) =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1);
+
+export const SEO_SIZES = baseSizePages.map((item) => {
+  const vehicleReferences = uniqueBy(
+    vehicleReferencesBySize.get(item.slug) || [],
+    (entry) => entry.slug,
+  );
+  const catalogueReferences = uniqueBy(
+    catalogueReferencesBySize.get(item.slug) || [],
+    (entry) => entry.slug,
+  );
+  const sidewallHeight = (item.width * item.aspectRatio) / 100;
+  const overallDiameter = item.rim * 25.4 + sidewallHeight * 2;
+  const diameterInches = overallDiameter / 25.4;
+  const applications = uniqueBy(
+    [
+      ...(item.commonApplications || []),
+      ...vehicleReferences.map((vehicle) => ({
+        application: vehicle.name,
+        status: "verify",
+        note: `${vehicle.context} Reference only; confirm the exact model year, trim, placard and fitted wheel.`,
+      })),
+      ...catalogueReferences
+        .filter((product) => product.vehicle)
+        .map((product) => ({
+          application: product.vehicle,
+          status: "catalogue-reference",
+          note: "Catalogue use-category only; it does not approve fitment for a particular vehicle.",
+        })),
+    ],
+    (entry) => String(entry.application || entry.name || entry).toLowerCase(),
+  );
+  const siblings = baseSizePages
+    .filter((candidate) => candidate.rim === item.rim && candidate.slug !== item.slug)
+    .slice(0, 5);
+  const referenceSummary = vehicleReferences.length
+    ? `Our reference data connects it with ${vehicleReferences.map((vehicle) => vehicle.name).join(", ")}. These are starting points, not universal approvals.`
+    : catalogueReferences.length
+      ? `Our catalogue includes ${catalogueReferences.map((product) => product.name).join(", ")} in this labelled size. Ask us to confirm the exact current item and its ratings.`
+      : "This size is retained as a researched fitment reference. Ask our team to confirm a suitable current option for the exact vehicle.";
+  const relatedLinks = uniqueBy(
+    [
+      { label: `Browse all ${item.rim}-inch tyre sizes`, href: `/tyre-sizes/${item.rim}-inch` },
+      ...vehicleReferences.slice(0, 3).map((vehicle) => ({
+        label: `Tyres for ${vehicle.name}`,
+        href: `/vehicles/${vehicle.slug}`,
+      })),
+      ...catalogueReferences.slice(0, 3).map((product) => ({
+        label: `${product.name} ${item.size}`,
+        href: `/product/${product.slug}`,
+      })),
+      ...siblings.map((sibling) => ({
+        label: `${sibling.size} tyre guide`,
+        href: `/tyre-sizes/${sibling.slug}`,
+      })),
+      { label: "How to choose the right tyre size", href: "/guides/how-to-choose-the-right-tyre-size-pakistan" },
+    ],
+    (entry) => entry.href,
+  );
+
+  return {
+    ...item,
+    path: `/tyre-sizes/${item.slug}`,
+    seoTitle: `${item.size} Tyres in Lahore | Rate & Fitment`,
+    metaDescription: `${item.size} tyre guide for Lahore: understand the size, see data-backed vehicle and catalogue references, and ask for today's rate and verified fitment.`,
+    heroTitle: `${item.size} tyres in Lahore`,
+    vehicleReferences,
+    catalogueReferences,
+    commonApplications: applications,
+    shoppingChecklist: [],
+    measurements: {
+      sidewallHeightMm: Number(sidewallHeight.toFixed(1)),
+      overallDiameterMm: Number(overallDiameter.toFixed(1)),
+      overallDiameterInches: Number(diameterInches.toFixed(2)),
+    },
+    highlights: [
+      {
+        title: "Complete size code",
+        description: `${item.width} mm nominal width, ${item.aspectRatio} profile and R${item.rim} radial wheel fitment.`,
+      },
+      {
+        title: "Estimated sidewall",
+        description: `${formatMillimetres(sidewallHeight)} mm per side, calculated from the nominal width and aspect ratio.`,
+      },
+      {
+        title: "Estimated diameter",
+        description: `${formatMillimetres(overallDiameter)} mm (${diameterInches.toFixed(2)} in). Actual mounted dimensions vary by tyre model and wheel.`,
+      },
+      {
+        title: "Reference coverage",
+        description: `${vehicleReferences.length} vehicle reference${vehicleReferences.length === 1 ? "" : "s"} and ${catalogueReferences.length} catalogue example${catalogueReferences.length === 1 ? "" : "s"} in our current data.`,
+      },
+    ],
+    sections: [
+      {
+        eyebrow: "READ THE SIDEWALL",
+        heading: `What ${item.size} means`,
+        paragraphs: [
+          `${item.width} is the nominal section width in millimetres. ${item.aspectRatio} means the sidewall height is ${item.aspectRatio}% of that width. R identifies radial construction and ${item.rim} is the wheel diameter in inches.`,
+          `Using those nominal values, the sidewall is about ${formatMillimetres(sidewallHeight)} mm and the overall unloaded diameter is about ${formatMillimetres(overallDiameter)} mm. These calculations help comparison; they do not replace the vehicle maker's approved specification.`,
+        ],
+      },
+      {
+        eyebrow: "OUR DATA",
+        heading: `Where ${item.size} appears`,
+        paragraphs: [referenceSummary],
+        bullets: [
+          ...vehicleReferences.map((vehicle) => `${vehicle.name}: ${vehicle.context}`),
+          ...catalogueReferences.map((product) => `${product.brand} ${product.name}: catalogue example; current pattern, ratings and stock must be reconfirmed.`),
+        ],
+      },
+      {
+        eyebrow: "BEFORE A QUOTE",
+        heading: `How to request the right ${item.size} option`,
+        paragraphs: [
+          `Send a clear sidewall photo, the vehicle make, model, year and variant, and tell us whether the wheels are original. For ${item.size}, we will then check current brands, pattern, manufacturing details, ratings, availability and rate.`,
+        ],
+        bullets: SIZE_CHECKLIST,
+      },
+    ],
+    faqs: [
+      {
+        question: `What does ${item.size} mean?`,
+        answer: `${item.width} is nominal width in millimetres, ${item.aspectRatio} is the aspect ratio and R${item.rim} means radial construction for a ${item.rim}-inch wheel. Load index and speed symbol are separate markings that must also be checked.`,
+      },
+      {
+        question: `Which cars use ${item.size} tyres?`,
+        answer: vehicleReferences.length
+          ? `${vehicleReferences.map((vehicle) => vehicle.name).join(", ")} appear in our reference data, but sizes vary by year, trim, import specification and wheel package. Verify the exact vehicle before purchase.`
+          : "Vehicle fitment varies by year, trim and wheel package. Share the placard and sidewall details so the complete requirement can be verified.",
+      },
+      {
+        question: `Is ${item.size} currently available in Lahore?`,
+        answer: "Availability changes by brand, pattern, ratings and shipment. Contact Wheels & Wheels with the exact size and vehicle for a current check; this page is not a live-stock promise.",
+      },
+      {
+        question: `Can I replace another size with ${item.size}?`,
+        answer: "Not from the size code alone. Overall diameter, wheel width, offset, clearance, load capacity, speed rating and manufacturer guidance all need checking before any change.",
+      },
+    ],
+    relatedLinks,
+    breadcrumbs: [
+      { name: "Home", path: "/" },
+      { name: "Tyres", path: "/tyres" },
+      { name: "Tyre sizes", path: "/tyre-sizes" },
+      { name: `${item.rim}-inch tyre sizes`, path: `/tyre-sizes/${item.rim}-inch` },
+      { name: item.size, path: `/tyre-sizes/${item.slug}` },
+    ],
+  };
+});
+
+export const TYRE_RIM_HUBS = Array.from({ length: 13 }, (_, index) => index + 12).map((rim) => {
+  const sizes = SEO_SIZES.filter((item) => item.rim === rim);
+  const firstSize = sizes[0]?.size;
+  const lastSize = sizes.at(-1)?.size;
+  const examples = sizes.map((item) => item.size).join(", ");
+  const path = `/tyre-sizes/${rim}-inch`;
+  return {
+    slug: `${rim}-inch`,
+    path,
+    rim,
+    sizes,
+    noIndex: sizes.length === 0,
+    name: `${rim}-inch tyre sizes`,
+    title: `${rim}-inch Tyre Sizes in Lahore`,
+    seoTitle: `${rim}-inch Tyre Sizes in Lahore | Fitment Directory`,
+    heroTitle: `${rim}-inch tyre size directory`,
+    metaDescription: sizes.length
+      ? `Browse ${sizes.length} data-backed ${rim}-inch tyre sizes, from ${firstSize} to ${lastSize}. Open an exact profile page and request a current Lahore rate.`
+      : `Ask Wheels & Wheels about a complete ${rim}-inch tyre requirement. Exact width, profile, ratings, vehicle and wheel fitment must be confirmed.`,
+    summary: sizes.length
+      ? `Start with the complete sidewall code. This directory contains ${sizes.length} exact ${rim}-inch fitments supported by our current vehicle or catalogue data: ${examples}.`
+      : `We accept enquiries for ${rim}-inch requirements, but our current published data does not contain a verified exact width/profile combination for this diameter. Send the complete sidewall code for a manual check.`,
+    verificationNote: FITMENT_NOTICE,
+    highlights: [
+      { title: "Wheel diameter", description: `R${rim} means a radial tyre designed for a ${rim}-inch wheel.` },
+      { title: "Published exact sizes", description: sizes.length ? `${sizes.length} data-backed combinations.` : "No exact combination published yet." },
+      { title: "Fitment rule", description: "Width, profile, load and speed rating still matter; rim diameter alone is not enough." },
+    ],
+    sections: [
+      {
+        eyebrow: "SIZE DIRECTORY",
+        heading: `${rim}-inch profiles in our current data`,
+        paragraphs: [
+          sizes.length
+            ? `Open an exact size below for its nominal dimensions, vehicle references, catalogue examples and enquiry links. Similar-looking ${rim}-inch tyres are not automatically interchangeable.`
+            : `No exact ${rim}-inch width/profile combination is currently supported by the published vehicle or catalogue data. This page is available for navigation and direct enquiries, but it is intentionally excluded from the search sitemap until useful exact-size data is added.`,
+        ],
+        bullets: sizes.map((item) => `${item.size}: ${item.vehicleReferences.length} vehicle reference${item.vehicleReferences.length === 1 ? "" : "s"}, ${item.catalogueReferences.length} catalogue example${item.catalogueReferences.length === 1 ? "" : "s"}.`),
+      },
+      {
+        eyebrow: "FITMENT FIRST",
+        heading: `What to verify for an R${rim} tyre`,
+        paragraphs: [
+          `The ${rim}-inch figure only identifies wheel diameter. A complete quote also needs width, aspect ratio, load index, speed symbol and the exact vehicle specification.`,
+        ],
+        bullets: SIZE_CHECKLIST,
+      },
+    ],
+    faqs: [
+      {
+        question: `Does every ${rim}-inch tyre fit every ${rim}-inch rim?`,
+        answer: "No. Wheel width, tyre width, profile, load rating, speed rating, offset and vehicle clearance must all be compatible.",
+      },
+      {
+        question: `How do I find my complete ${rim}-inch tyre size?`,
+        answer: `Read the sidewall code, such as ${firstSize || `205/55 R${rim}`}, and compare it with the vehicle placard or owner's manual. Send a clear photo if you are unsure.`,
+      },
+      {
+        question: `Can Wheels & Wheels source an unlisted ${rim}-inch size?`,
+        answer: "You can send the complete requirement for a current sourcing check. Availability is confirmed individually and is not guaranteed by this directory.",
+      },
+    ],
+    relatedLinks: [
+      ...sizes.map((item) => ({ label: `${item.size} tyres`, href: item.path })),
+      { label: "Browse all tyre sizes", href: "/tyre-sizes" },
+      { label: "How to choose the right tyre size", href: "/guides/how-to-choose-the-right-tyre-size-pakistan" },
+    ],
+    breadcrumbs: [
+      { name: "Home", path: "/" },
+      { name: "Tyres", path: "/tyres" },
+      { name: "Tyre sizes", path: "/tyre-sizes" },
+      { name: `${rim}-inch tyre sizes`, path },
+    ],
+  };
+});
+
+const GUIDE_TOPIC_DEFINITIONS = [
+  {
+    slug: "tyre-size-and-fitment",
+    name: "Tyre size and fitment",
+    title: "Tyre Size and Fitment Guides",
+    seoTitle: "Tyre Size & Fitment Guides for Pakistan",
+    description:
+      "Understand tyre sidewall codes, load and speed ratings, vehicle placards and safe fitment checks before choosing a replacement tyre.",
+    heroTitle: "Understand the complete tyre fitment.",
+    intro:
+      "Use the vehicle specification and every part of the tyre code—not wheel diameter alone—to narrow a safe, useful enquiry.",
+  },
+  {
+    slug: "buying-tyres-in-pakistan",
+    name: "Buying tyres in Pakistan",
+    title: "Tyre Buying Guides for Pakistan",
+    seoTitle: "Tyre Buying Guides for Pakistan | Wheels & Wheels",
+    description:
+      "Compare tyre brands, inspect the exact stock offered and ask the right questions about date codes, ratings, warranty and installed price.",
+    heroTitle: "Compare the complete tyre offer.",
+    intro:
+      "Brand and price are only part of the decision. These guides help you compare specifications, condition, support and real use.",
+  },
+  {
+    slug: "tyre-care-and-road-safety",
+    name: "Tyre care and road safety",
+    title: "Tyre Care and Road-Safety Guides",
+    seoTitle: "Tyre Care & Road-Safety Guides for Pakistan",
+    description:
+      "Practical tyre inspection, pressure, replacement, balancing and alignment guidance for city, motorway, summer and monsoon driving.",
+    heroTitle: "Keep tyres, wheels and steering in check.",
+    intro:
+      "Use repeatable inspections and diagnose symptoms early. A tyre, wheel or suspension fault should be identified before adjustment or replacement.",
+  },
+];
+
+const guideTopicForCategory = (category = "") => {
+  const normalized = category.toLowerCase();
+  if (normalized.includes("size") || normalized.includes("fitment")) {
+    return "tyre-size-and-fitment";
+  }
+  if (normalized.includes("buying") || normalized.includes("inspection")) {
+    return "buying-tyres-in-pakistan";
+  }
+  return "tyre-care-and-road-safety";
+};
+
 const guide = ({
   slug,
   title,
   excerpt,
   readMinutes,
   category,
+  topicSlug,
   publishedAt,
   image,
   imageAlt,
@@ -709,6 +1078,7 @@ const guide = ({
   excerpt,
   readMinutes,
   category,
+  topicSlug: topicSlug || guideTopicForCategory(category),
   publishedAt,
   updatedAt: SEO_CONTENT_UPDATED,
   author: { name: "Wheels & Wheels tyre team", url: "/about" },
@@ -1171,7 +1541,248 @@ export const GUIDES = [
       { label: "Compare tyre brands", href: "/brands" },
     ],
   }),
+  guide({
+    slug: "tyre-load-index-speed-rating-guide-pakistan",
+    title: "Tyre Load Index and Speed Rating Explained for Pakistan",
+    category: "TYRE SIZE & FITMENT",
+    topicSlug: "tyre-size-and-fitment",
+    publishedAt: "2026-10-01",
+    image: "/tyre.jpg",
+    imageAlt: "Passenger tyre sidewall used to explain load index and speed rating markings",
+    imageCaption: "Read the complete marking on the exact tyre and compare it with the vehicle specification before purchase.",
+    takeaway: "Matching width, profile and rim is not enough; the required load index and speed symbol also need verification.",
+    excerpt:
+      "Learn what the numbers and letters after a tyre size mean, where to find the vehicle requirement and why a higher-looking code is not the only buying decision.",
+    readMinutes: 7,
+    sections: [
+      {
+        heading: "Look beyond the dimensional size",
+        paragraphs: [
+          "A sidewall marking may continue after a size such as 205/55 R16 with a number and a letter. The number is a load-index code and the letter is a speed symbol. They are part of the operating specification, not decoration.",
+          "A load index is not the tyre's weight in kilograms. It maps to a rated carrying capacity under defined conditions. Use a current tyre-manufacturer table and the vehicle requirement when interpreting it.",
+        ],
+      },
+      {
+        heading: "Start with the vehicle requirement",
+        paragraphs: [
+          "Check the placard and owner's manual for the exact model, year, trim and wheel package. Imported variants and optional wheels can differ even when the badge on the boot is the same.",
+          "If the current tyre has a different rating from the placard, do not assume the fitted tyre proves what is correct. Find out whether the wheels or specification were changed and have the setup checked.",
+        ],
+        bullets: [
+          "Record the complete size, load index and speed symbol",
+          "Confirm whether the marking is for a standard-load, reinforced or other specified construction",
+          "Check axle, passenger and luggage requirements for the actual vehicle",
+          "Ask whether all tyres in a set carry compatible specifications",
+        ],
+      },
+      {
+        heading: "Do not compare one code in isolation",
+        paragraphs: [
+          "A tyre with a higher rating still has to be the correct dimensional size, construction and use category. Ride, pressure guidance, wheel compatibility and vehicle-system requirements do not disappear because one code is higher.",
+          "The speed symbol describes a tested capability under specified conditions; it is not permission to drive at that speed. Road limits, tyre condition, pressure, load, heat and vehicle condition remain essential.",
+        ],
+      },
+      {
+        heading: "What to send with a rate request",
+        bullets: [
+          "A clear photo showing the whole sidewall marking",
+          "Vehicle make, model, year and exact variant",
+          "Whether the wheels are factory fitted or changed",
+          "Normal passenger, luggage and motorway use",
+          "Any manufacturer requirement shown on the placard or manual",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Can two tyres with the same size have different load indexes?",
+        answer: "Yes. Always compare the complete marking and confirm that the offered rating meets the vehicle requirement.",
+      },
+      {
+        question: "Is a higher speed rating automatically better?",
+        answer: "No. The tyre must still suit the vehicle, wheel, load and intended use. Compare the complete specification and tyre category.",
+      },
+      {
+        question: "Where can I find the required rating?",
+        answer: "Start with the vehicle placard and owner's manual. If the car has changed wheels or an unclear import specification, arrange a complete fitment check.",
+      },
+      {
+        question: "Can I rely on the rating on my current tyre?",
+        answer: "Use it as evidence of what is fitted, not automatic proof of what the vehicle requires. Previous owners may have changed the setup.",
+      },
+    ],
+    relatedLinks: [
+      { label: "How to choose the right tyre size", href: "/guides/how-to-choose-the-right-tyre-size-pakistan" },
+      { label: "Browse exact tyre-size pages", href: "/tyre-sizes" },
+      { label: "Find tyres by vehicle", href: "/vehicles" },
+    ],
+  }),
+  guide({
+    slug: "how-to-compare-tyre-prices-pakistan",
+    title: "How to Compare Tyre Prices in Pakistan Without Missing the Details",
+    category: "TYRE BUYING",
+    topicSlug: "buying-tyres-in-pakistan",
+    publishedAt: "2026-10-01",
+    image: "/tyreinstallation.jpg",
+    imageAlt: "Tyres being checked during installation for a complete price comparison",
+    imageCaption: "Compare the exact tyre and the complete installed offer, not a size-only headline price.",
+    takeaway: "A useful price comparison names the exact tyre, full specification, quantity, included services and written support.",
+    excerpt:
+      "Build a like-for-like tyre quotation by checking the exact pattern, ratings, manufacturing details, quantity, fitting, balancing and warranty terms.",
+    readMinutes: 8,
+    sections: [
+      {
+        heading: "Make every seller quote the same requirement",
+        paragraphs: [
+          "Begin with the complete sidewall size, the vehicle details and the required load and speed ratings. A quote for a different rating, pattern or production source is not a like-for-like comparison even when the brand name matches.",
+          "Ask for the exact pattern name. Large brands sell several product families for different priorities, and a general brand quote can hide an important difference.",
+        ],
+      },
+      {
+        heading: "Separate tyre price from installed total",
+        table: {
+          headers: ["Quote item", "What to confirm"],
+          rows: [
+            ["Tyre quantity", "One tyre, a pair or a set of four"],
+            ["Fitting", "Removal, installation and new valves where required"],
+            ["Balancing", "Whether all fitted assemblies are balanced"],
+            ["Alignment", "Whether it is included, separate or only recommended after inspection"],
+            ["Old tyres", "Whether disposal or return of the old set is included"],
+            ["Warranty", "Who handles a claim and what written exclusions apply"],
+          ],
+        },
+      },
+      {
+        heading: "Inspect the exact stock behind the price",
+        paragraphs: [
+          "Before payment, inspect size, pattern, load index, speed symbol, manufacturing country, identification and date information on the physical tyres offered. Confirm that condition and markings are consistent with the invoice.",
+          "A website image is representative unless it identifies the exact stock. Current availability and price should be reconfirmed close to purchase because imported-tyre supply can change.",
+        ],
+      },
+      {
+        heading: "Use a simple comparison message",
+        bullets: [
+          "Vehicle, model year and variant",
+          "Complete tyre size plus load and speed rating",
+          "Preferred priorities: value, comfort, noise, mileage, grip or road type",
+          "Required quantity and whether fitting and balancing are needed",
+          "Request for exact brand, pattern, country marking, date information and written total",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Why can the same tyre size have very different prices?",
+        answer: "Brand, pattern, ratings, production source, shipment cost, quantity, condition, warranty and included services can all differ.",
+      },
+      {
+        question: "Should a quote say whether the price is per tyre?",
+        answer: "Yes. Confirm the quantity and ask for the set total so there is no ambiguity.",
+      },
+      {
+        question: "Is fitting always included in a tyre price?",
+        answer: "No. Ask separately about fitting, valves, balancing, alignment and old-tyre handling.",
+      },
+      {
+        question: "Can an online price guarantee stock?",
+        answer: "Only if the seller operates verified live inventory and states the terms. Wheels & Wheels confirms current stock and rate directly for the exact request.",
+      },
+    ],
+    relatedLinks: [
+      { label: "Compare tyre brands", href: "/brands" },
+      { label: "How to inspect a tyre before buying", href: "/guides/verify-fresh-genuine-tyres-lahore" },
+      { label: "Request a current rate", href: "/quote" },
+    ],
+  }),
+  guide({
+    slug: "when-to-replace-tyres-pakistan",
+    title: "When Should You Replace Tyres? A Pakistan Road-Use Checklist",
+    category: "TYRE CARE & SAFETY",
+    topicSlug: "tyre-care-and-road-safety",
+    publishedAt: "2026-10-01",
+    image: "/wheel.jpg",
+    imageAlt: "Tyre tread and wheel prepared for a condition inspection",
+    imageCaption: "Condition, tread, age, pressure history and road damage all belong in a replacement decision.",
+    takeaway: "Replace based on a complete condition and specification check—not mileage, age or tread appearance alone.",
+    excerpt:
+      "Use visible damage, tread condition, pressure loss, vibration, age and vehicle behaviour to decide when a tyre needs professional inspection or replacement.",
+    readMinutes: 8,
+    sections: [
+      {
+        heading: "Stop and inspect urgent warning signs",
+        paragraphs: [
+          "A sidewall bulge, exposed cords, deep cut, bead damage, major cracking, sudden pressure loss or a tyre that has run flat can indicate structural damage. Reduce risk and arrange inspection rather than continuing normal driving.",
+          "Vibration after an impact can come from a tyre, wheel, hub or suspension problem. Balancing should not be used to disguise visible damage.",
+        ],
+      },
+      {
+        heading: "Read tread across the whole tyre",
+        paragraphs: [
+          "Inspect inner, centre and outer tread zones. One edge can wear rapidly while the visible shoulder still looks acceptable, especially when pressure, alignment or suspension is wrong.",
+          "Use the tyre maker's wear indicators and applicable road rules as minimum boundaries, but remember that wet-road performance and damage concerns can justify earlier replacement. If you cannot inspect the inner edge safely, ask a professional.",
+        ],
+      },
+      {
+        heading: "Age is context, not a single expiry number",
+        paragraphs: [
+          "The date code helps identify production timing, but storage, heat exposure, use, maintenance and manufacturer guidance affect condition. A newer tyre can be damaged, and an older tyre still requires a physical inspection rather than a visual guess from one number.",
+          "Follow the vehicle and tyre manufacturer's inspection and replacement guidance for the exact product. Include the spare, which can age even when it has never been driven on the road.",
+        ],
+      },
+      {
+        heading: "Use this replacement decision checklist",
+        bullets: [
+          "Inspect for cuts, bulges, cracking, deformation and puncture repairs",
+          "Measure tread across the full width and compare all four tyres",
+          "Check cold pressure repeatedly for unexplained loss",
+          "Investigate vibration, pulling or new road noise",
+          "Confirm date information and manufacturer guidance",
+          "Check whether the axle pair or all four tyres need compatible replacement",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Is mileage alone enough to decide replacement?",
+        answer: "No. Driving style, pressure, alignment, load, road surface, tyre design, damage and age can make tyres wear very differently.",
+      },
+      {
+        question: "Can a sidewall puncture be repaired?",
+        answer: "Sidewall and shoulder damage needs expert assessment and is commonly unsuitable for a standard tread-area repair. Do not rely on a temporary seal as a permanent decision.",
+      },
+      {
+        question: "Should the newest tyres go on the front or rear?",
+        answer: "Follow the vehicle and tyre manufacturer's guidance and have the complete set assessed. Stability, drivetrain and remaining tread all matter.",
+      },
+      {
+        question: "Does a tyre need inspection after a pothole impact?",
+        answer: "Yes if there is a bulge, pressure loss, vibration, pulling, wheel damage or any change in driving behaviour. Hidden damage can require removal for inspection.",
+      },
+    ],
+    relatedLinks: [
+      { label: "Lahore summer and monsoon checklist", href: "/guides/lahore-summer-monsoon-tyre-checklist" },
+      { label: "Alignment versus balancing", href: "/guides/wheel-alignment-vs-balancing-lahore" },
+      { label: "Browse tyres by exact size", href: "/tyre-sizes" },
+    ],
+  }),
 ];
+
+export const GUIDE_TOPICS = GUIDE_TOPIC_DEFINITIONS.map((topic) => {
+  const guides = GUIDES.filter((item) => item.topicSlug === topic.slug);
+  const path = `/guides/topics/${topic.slug}`;
+  return {
+    ...topic,
+    path,
+    guides,
+    count: guides.length,
+    updatedAt: SEO_CONTENT_UPDATED,
+    breadcrumbs: [
+      { name: "Home", path: "/" },
+      { name: "Blog and tyre guides", path: "/guides" },
+      { name: topic.name, path },
+    ],
+  };
+});
 
 const slugify = (value = "") => {
   const decoded = (() => {
@@ -1199,8 +1810,14 @@ export const getVehicleBySlug = (slug) =>
 export const getSizeBySlug = (slug) =>
   SEO_SIZES.find((item) => item.slug === slugify(slug)) || null;
 
+export const getRimHubBySlug = (slug) =>
+  TYRE_RIM_HUBS.find((item) => item.slug === slugify(slug)) || null;
+
 export const getGuide = (slug) =>
   GUIDES.find((item) => item.slug === slugify(slug)) || null;
+
+export const getGuideTopic = (slug) =>
+  GUIDE_TOPICS.find((item) => item.slug === slugify(slug)) || null;
 
 export const getSeoLanding = (kind, slug) => {
   const normalizedKind = slugify(kind);
@@ -1211,8 +1828,14 @@ export const getSeoLanding = (kind, slug) => {
   if (["size", "sizes", "tyre-size", "tyre-sizes"].includes(normalizedKind)) {
     return getSizeBySlug(slug);
   }
+  if (["rim", "rims", "rim-size", "rim-sizes"].includes(normalizedKind)) {
+    return getRimHubBySlug(slug);
+  }
   if (["guide", "guides", "article", "articles"].includes(normalizedKind)) {
     return getGuide(slug);
+  }
+  if (["guide-topic", "guide-topics", "topic", "topics"].includes(normalizedKind)) {
+    return getGuideTopic(slug);
   }
   return null;
 };
@@ -1221,7 +1844,11 @@ export default {
   SEO_BRANDS,
   SEO_VEHICLES,
   SEO_SIZES,
+  TYRE_RIM_HUBS,
   GUIDES,
+  GUIDE_TOPICS,
   getSeoLanding,
   getGuide,
+  getGuideTopic,
+  getRimHubBySlug,
 };

@@ -12,9 +12,6 @@ import * as seoContent from "../../Data/seoContent.js";
 import SeoHead from "./SeoHead.jsx";
 
 const WHATSAPP = "923390045836";
-const WIDTHS = [155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 305, 315, 325, 335, 345, 355];
-const PROFILES = [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
-const RIMS = Array.from({ length: 13 }, (_, index) => index + 12);
 
 function collection(...candidates) {
   const value = candidates.find((candidate) => candidate && typeof candidate === "object");
@@ -50,7 +47,13 @@ function summaryText(item, type) {
     return sizes ? `Commonly researched sizes: ${sizes}. Verify by year and variant.` : "Fitment must be verified by model, year and variant.";
   }
   const applications = Array.isArray(item.commonApplications)
-    ? item.commonApplications.slice(0, 2).join(", ")
+    ? item.commonApplications
+        .slice(0, 2)
+        .map((entry) =>
+          typeof entry === "string" ? entry : entry.application || entry.name || entry.title,
+        )
+        .filter(Boolean)
+        .join(", ")
     : item.commonApplications;
   return applications || "Compare current brand options and confirm fitment for your vehicle.";
 }
@@ -99,12 +102,74 @@ function DiscoverySection({ id, eyebrow, title, intro, items, type, allHref, all
   );
 }
 
+function TyreSizeDirectory({ hubs }) {
+  return (
+    <section className="tyre-size-directory section" aria-labelledby="tyre-size-directory-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">12–24 INCH DIRECTORY</p>
+          <h2 id="tyre-size-directory-title">Choose a wheel diameter, then an exact size</h2>
+          <p>
+            Every linked profile below comes from the current vehicle-reference or catalogue data.
+            Diameters without an exact published profile remain enquiry-only.
+          </p>
+        </div>
+      </div>
+      <div className="rim-directory-grid">
+        {hubs.map((hub) => (
+          <article key={hub.slug} className={hub.noIndex ? "rim-directory-card is-enquiry-only" : "rim-directory-card"}>
+            <p className="eyebrow">R{hub.rim} WHEEL</p>
+            <h3><Link to={hub.path}>{hub.rim}-inch tyre sizes</Link></h3>
+            <p>
+              {hub.sizes.length
+                ? `${hub.sizes.length} exact profile${hub.sizes.length === 1 ? "" : "s"} in our current data.`
+                : "Send the complete sidewall code for a sourcing check."}
+            </p>
+            {!!hub.sizes.length && (
+              <div className="rim-size-links" aria-label={`${hub.rim}-inch exact tyre sizes`}>
+                {hub.sizes.map((size) => (
+                  <Link key={size.slug} to={size.path}>{size.size}</Link>
+                ))}
+              </div>
+            )}
+            <Link className="guide-read-link" to={hub.path}>
+              {hub.sizes.length ? "Open diameter guide" : "Ask about this diameter"}
+              <FaChevronRight aria-hidden="true" />
+            </Link>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function DiscoveryHub({ focus = "all" }) {
   const navigate = useNavigate();
-  const [fitment, setFitment] = useState({ width: "195", profile: "65", rim: "15" });
   const brands = collection(seoContent.SEO_BRANDS, seoContent.default?.SEO_BRANDS);
   const vehicles = collection(seoContent.SEO_VEHICLES, seoContent.default?.SEO_VEHICLES);
   const sizes = collection(seoContent.SEO_SIZES, seoContent.default?.SEO_SIZES);
+  const rimHubs = collection(seoContent.TYRE_RIM_HUBS, seoContent.default?.TYRE_RIM_HUBS);
+  const preferredSize = sizes.find((item) => item.slug === "195-65-r15") || sizes[0];
+  const [fitment, setFitment] = useState({
+    width: String(preferredSize?.width || 195),
+    profile: String(preferredSize?.aspectRatio || 65),
+    rim: String(preferredSize?.rim || 15),
+  });
+  const widthOptions = [...new Set(sizes.map((item) => item.width))].sort((a, b) => a - b);
+  const profileOptions = [...new Set(
+    sizes
+      .filter((item) => String(item.width) === fitment.width)
+      .map((item) => item.aspectRatio),
+  )].sort((a, b) => a - b);
+  const rimOptions = [...new Set(
+    sizes
+      .filter(
+        (item) =>
+          String(item.width) === fitment.width &&
+          String(item.aspectRatio) === fitment.profile,
+      )
+      .map((item) => item.rim),
+  )].sort((a, b) => a - b);
   const pageCopy = {
     all: {
       title: "Find Tyres by Size, Brand or Vehicle",
@@ -159,8 +224,27 @@ export default function DiscoveryHub({ focus = "all" }) {
 
   const submitFitment = (event) => {
     event.preventDefault();
-    const size = `${fitment.width}/${fitment.profile} R${fitment.rim}`;
-    navigate(`/shop?category=Tyres&size=${encodeURIComponent(size)}`);
+    const match = sizes.find(
+      (item) =>
+        String(item.width) === fitment.width &&
+        String(item.aspectRatio) === fitment.profile &&
+        String(item.rim) === fitment.rim,
+    );
+    if (match) navigate(match.path || `/tyre-sizes/${match.slug}`);
+  };
+
+  const selectWidth = (width) => {
+    const next = sizes.find((item) => String(item.width) === width);
+    if (!next) return;
+    setFitment({ width, profile: String(next.aspectRatio), rim: String(next.rim) });
+  };
+
+  const selectProfile = (profile) => {
+    const next = sizes.find(
+      (item) => String(item.width) === fitment.width && String(item.aspectRatio) === profile,
+    );
+    if (!next) return;
+    setFitment({ width: fitment.width, profile, rim: String(next.rim) });
   };
 
   return (
@@ -217,18 +301,18 @@ export default function DiscoveryHub({ focus = "all" }) {
             Width
             <select
               value={fitment.width}
-              onChange={(event) => setFitment({ ...fitment, width: event.target.value })}
+              onChange={(event) => selectWidth(event.target.value)}
             >
-              {WIDTHS.map((value) => <option key={value} value={value}>{value}</option>)}
+              {widthOptions.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
           <label>
             Profile
             <select
               value={fitment.profile}
-              onChange={(event) => setFitment({ ...fitment, profile: event.target.value })}
+              onChange={(event) => selectProfile(event.target.value)}
             >
-              {PROFILES.map((value) => <option key={value} value={value}>{value}</option>)}
+              {profileOptions.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
           <label>
@@ -237,7 +321,7 @@ export default function DiscoveryHub({ focus = "all" }) {
               value={fitment.rim}
               onChange={(event) => setFitment({ ...fitment, rim: event.target.value })}
             >
-              {RIMS.map((value) => <option key={value} value={value}>{value} inch</option>)}
+              {rimOptions.map((value) => <option key={value} value={value}>{value} inch</option>)}
             </select>
           </label>
           <button className="primary" type="submit">
@@ -273,15 +357,17 @@ export default function DiscoveryHub({ focus = "all" }) {
         />
       )}
 
-      {(focus === "all" || focus === "size") && (
+      {focus === "size" && <TyreSizeDirectory hubs={rimHubs} />}
+
+      {focus === "all" && (
         <DiscoverySection
           id="discover-sizes"
           eyebrow="POPULAR FITMENTS"
           title="Browse tyres by size"
           intro="Use an exact width, profile and rim diameter to narrow the options available for quotation."
-          items={focus === "size" ? sizes : sizes.slice(0, 12)}
+          items={sizes.slice(0, 12)}
           type="size"
-          allHref={focus === "all" ? "/tyre-sizes" : undefined}
+          allHref="/tyre-sizes"
           allLabel="View all sizes"
         />
       )}

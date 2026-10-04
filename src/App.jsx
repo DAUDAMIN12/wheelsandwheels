@@ -12,6 +12,7 @@ import {
 } from "react-router-dom";
 import {
   FaBars,
+  FaBookOpen,
   FaCheck,
   FaChevronRight,
   FaFacebookF,
@@ -29,6 +30,7 @@ import {
   FaWhatsapp,
 } from "react-icons/fa";
 import PRODUCTS, { formatPrice } from "./Data/productsData";
+import TYRE_SIZE_MANIFEST, { findTyreSize } from "./Data/tyreSizeManifest.js";
 import { api, apiWithMeta } from "./api";
 import ServiceDetail from "./components/ServiceDetail.jsx";
 import FloatingWhatsApp from "./components/FloatingWhatsApp.jsx";
@@ -45,6 +47,7 @@ const TyreSizesHub = lazy(() =>
   import("./components/growth/DiscoveryHub.jsx").then((module) => ({ default: module.TyreSizesHub })),
 );
 const GuidesHub = lazy(() => import("./components/growth/GuidesHub.jsx"));
+const GuideTopicPage = lazy(() => import("./components/growth/GuideTopicPage.jsx"));
 const GuideArticle = lazy(() => import("./components/growth/GuideArticle.jsx"));
 const CommercialLandingPage = lazy(() =>
   import("./components/growth/CommercialLandingPage.jsx"),
@@ -75,6 +78,9 @@ const FAQPage = lazy(() =>
 );
 
 const WHATSAPP = "923390045836";
+const SITE_URL = (
+  import.meta.env.VITE_SITE_URL || "https://wheelsandwheels.vercel.app"
+).replace(/\/$/, "");
 const RFQ_PAGE_SIZE = 50;
 const ONLINE_CHECKOUT_ENABLED = false;
 const CUSTOMER_PORTAL_ENABLED = false;
@@ -94,14 +100,16 @@ const brandPriority = (brand) => {
   const index = BRAND_PRIORITY.indexOf(brand);
   return index === -1 ? BRAND_PRIORITY.length : index;
 };
-const TYRE_PROFILE_GUIDE = {
-  12: [70, 80], 13: [65, 70, 80], 14: [60, 65, 70, 75],
-  15: [55, 60, 65, 70], 16: [45, 50, 55, 60, 65, 70],
-  17: [40, 45, 50, 55, 60, 65], 18: [35, 40, 45, 50, 55, 60],
-  19: [30, 35, 40, 45, 50, 55], 20: [30, 35, 40, 45, 50, 55, 60],
-  21: [30, 35, 40, 45, 50], 22: [25, 30, 35, 40, 45, 50, 55],
-  23: [25, 30, 35, 40, 45], 24: [25, 30, 35, 40, 45],
-};
+const TYRE_PROFILE_GUIDE = Object.fromEntries(
+  Array.from({ length: 13 }, (_, index) => index + 12).map((rim) => [
+    rim,
+    [...new Set(
+      TYRE_SIZE_MANIFEST
+        .filter((item) => item.rim === rim)
+        .map((item) => item.profile),
+    )].sort((a, b) => a - b),
+  ]),
+);
 const SOURCING_BRANDS = [
   { brand: "Michelin", group: "premium", origin: "Other", badge: "Premium · France" },
   { brand: "Pirelli", group: "premium", origin: "Other", badge: "Premium · Italy" },
@@ -193,7 +201,7 @@ function ProductCard({ product, add }) {
           {product.onRequest ? (
             <><FaCheck /> <span>Availability and exact pattern confirmed on request</span></>
           ) : (
-            <><FaCheck /> <span>{product.stock} listed · Confirm current availability</span></>
+            <><FaCheck /> <span>Catalogue reference · Confirm current availability</span></>
           )}
         </div>
         <div className="price-row">
@@ -239,7 +247,7 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
         {sizes.map((diameter) => (
           <button key={diameter} className="diameter-card" onClick={() => setSelected({ diameter, profiles: TYRE_PROFILE_GUIDE[diameter] })} aria-label={`Ask about ${diameter} inch ${isRim ? "rims" : "tyres"}`}>
             <span className="diameter-image"><img src={isRim ? "/Rim1.jpg" : "/tyre.jpg"} alt={`${diameter} inch ${isRim ? "alloy rim" : "tyre"}`} loading="lazy" decoding="async" /><i>ASK US</i></span>
-            <span className="diameter-copy"><small>{isRim ? "ALLOY RIM" : "TYRE FITMENT"}</small><strong>{diameter}<sup>″</sup></strong>{!isRim && <em>Profiles {TYRE_PROFILE_GUIDE[diameter].join(" · ")}</em>}<b>Check current options <FaChevronRight /></b></span>
+            <span className="diameter-copy"><small>{isRim ? "ALLOY RIM" : "TYRE FITMENT"}</small><strong>{diameter}<sup>″</sup></strong>{!isRim && <em>{TYRE_PROFILE_GUIDE[diameter].length ? `Published profiles ${TYRE_PROFILE_GUIDE[diameter].join(" · ")}` : "Send your complete tyre size"}</em>}<b>Check current options <FaChevronRight /></b></span>
           </button>
         ))}
       </div>
@@ -251,7 +259,7 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
             <div className="size-modal-visual"><img src={isRim ? "/Rim1.jpg" : "/tyre.jpg"} alt="" /><span>{selected.diameter}″</span></div>
             <div className="eyebrow">AVAILABLE ON REQUEST</div>
             <h2 id="size-contact-title">Ask about {selected.diameter}-inch {isRim ? "rims" : "tyres"}.</h2>
-            {!isRim && <p className="modal-profiles"><b>Common profiles:</b> {selected.profiles.join(", ")}. Share your full tyre size or vehicle model for an exact match.</p>}
+            {!isRim && <p className="modal-profiles">{selected.profiles.length ? <><b>Published profiles:</b> {selected.profiles.join(", ")}. </> : null}Share your full tyre size or vehicle model for an exact match.</p>}
             {isRim && <p className="modal-profiles">Share your vehicle make, model and year so we can verify PCD, offset, width and hub size.</p>}
             <div className="size-contact-actions">
               <a href="tel:+923214229594"><FaPhoneAlt /> Call 0321 4229594</a>
@@ -345,7 +353,7 @@ function Header({ count, openCart }) {
                 <Link to="/tyres/japanese" onClick={closeNavigation}>Japanese tyres</Link>
                 <Link to="/tyres/premium" onClick={closeNavigation}>Premium tyres</Link>
                 <Link to="/tyres/chinese" onClick={closeNavigation}>Chinese tyres</Link>
-                <Link to="/shop?category=All%20Tyres" onClick={closeNavigation}>All 12–24 inch tyres</Link>
+                <Link to="/tyre-sizes" onClick={closeNavigation}>All 12–24 inch tyre sizes</Link>
               </section>
               <section>
                 <small>TOP BRANDS</small>
@@ -417,8 +425,11 @@ function MobileNavigation({ count, openCart }) {
       <Link className={pathname === "/" ? "active" : ""} to="/">
         <FaHome /><span>Home</span>
       </Link>
-      <Link className={pathname.startsWith("/shop") || pathname.startsWith("/product") ? "active" : ""} to="/shop?category=All%20Tyres">
+      <Link className={pathname.startsWith("/tyre-sizes") || pathname.startsWith("/shop") || pathname.startsWith("/product") ? "active" : ""} to="/tyre-sizes">
         <FaSearch /><span>Tyres</span>
+      </Link>
+      <Link className={pathname.startsWith("/guides") ? "active" : ""} to="/guides">
+        <FaBookOpen /><span>Blog</span>
       </Link>
       <Link className={pathname === "/quote" ? "active" : ""} to="/quote">
         <FaPhoneAlt /><span>Get rate</span>
@@ -438,6 +449,34 @@ function Home({ add, products }) {
     profile: "55",
     rim: "16",
   });
+  const widthOptions = [...new Set(TYRE_SIZE_MANIFEST.map((item) => item.width))];
+  const profileOptions = [...new Set(
+    TYRE_SIZE_MANIFEST
+      .filter((item) => String(item.width) === fitment.width)
+      .map((item) => item.profile),
+  )].sort((a, b) => a - b);
+  const rimOptions = [...new Set(
+    TYRE_SIZE_MANIFEST
+      .filter(
+        (item) =>
+          String(item.width) === fitment.width && String(item.profile) === fitment.profile,
+      )
+      .map((item) => item.rim),
+  )].sort((a, b) => a - b);
+  const selectHomeWidth = (width) => {
+    const next = TYRE_SIZE_MANIFEST.find((item) => String(item.width) === width);
+    if (next) setFitment({ width, profile: String(next.profile), rim: String(next.rim) });
+  };
+  const selectHomeProfile = (profile) => {
+    const next = TYRE_SIZE_MANIFEST.find(
+      (item) => String(item.width) === fitment.width && String(item.profile) === profile,
+    );
+    if (next) setFitment({ width: fitment.width, profile, rim: String(next.rim) });
+  };
+  const openSelectedSize = () => {
+    const match = findTyreSize(fitment);
+    navigate(match?.path || "/tyre-sizes");
+  };
   return (
     <main>
       <SeoHead
@@ -458,7 +497,7 @@ function Home({ add, products }) {
             then ask our Lahore team for current rates and verified fitment.
           </p>
           <div className="hero-actions">
-            <button className="primary" onClick={() => navigate("/shop")}>
+            <button className="primary" onClick={() => navigate("/tyre-sizes")}>
               Find tyres by size <FaChevronRight />
             </button>
             <a
@@ -495,14 +534,9 @@ function Home({ add, products }) {
               WIDTH
               <select
                 value={fitment.width}
-                onChange={(event) =>
-                  setFitment({ ...fitment, width: event.target.value })
-                }
+                onChange={(event) => selectHomeWidth(event.target.value)}
               >
-                {[
-                  155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255,
-                  265, 275, 285, 295, 305, 315, 325, 335, 345, 355,
-                ].map((value) => (
+                {widthOptions.map((value) => (
                   <option key={value}>{value}</option>
                 ))}
               </select>
@@ -511,15 +545,11 @@ function Home({ add, products }) {
               PROFILE
               <select
                 value={fitment.profile}
-                onChange={(event) =>
-                  setFitment({ ...fitment, profile: event.target.value })
-                }
+                onChange={(event) => selectHomeProfile(event.target.value)}
               >
-                {[35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85].map(
-                  (value) => (
-                    <option key={value}>{value}</option>
-                  ),
-                )}
+                {profileOptions.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
               </select>
             </label>
             <label>
@@ -530,22 +560,16 @@ function Home({ add, products }) {
                   setFitment({ ...fitment, rim: event.target.value })
                 }
               >
-                {Array.from({ length: 13 }, (_, index) => index + 12).map(
-                  (value) => (
-                    <option key={value} value={value}>
-                      {value} inch
-                    </option>
-                  ),
-                )}
+                {rimOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value} inch
+                  </option>
+                ))}
               </select>
             </label>
           </div>
           <button
-            onClick={() =>
-              navigate(
-                `/shop?category=Tyres&size=${fitment.width}%2F${fitment.profile}%20R${fitment.rim}`,
-              )
-            }
+            onClick={openSelectedSize}
           >
             Show matching tyres <FaChevronRight />
           </button>
@@ -751,7 +775,22 @@ function Shop({ add, products, loading }) {
   const [profile, setProfile] = useState(requestedParts?.[2] || "");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("featured");
-  const profileOptions = [35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85];
+  const widthOptions = [...new Set(TYRE_SIZE_MANIFEST.map((item) => item.width))];
+  const profileOptions = [...new Set(
+    TYRE_SIZE_MANIFEST
+      .filter((item) => !width || String(item.width) === width)
+      .map((item) => item.profile),
+  )].sort((a, b) => a - b);
+  const tyreRimOptions = [...new Set(
+    TYRE_SIZE_MANIFEST
+      .filter(
+        (item) =>
+          (!width || String(item.width) === width) &&
+          (!profile || String(item.profile) === profile),
+      )
+      .map((item) => item.rim),
+  )].sort((a, b) => a - b);
+  const selectedManifestSize = findTyreSize({ width, profile, rim });
   const inventoryItems = useMemo(
     () =>
       products
@@ -917,14 +956,13 @@ function Shop({ add, products, loading }) {
                 value={width}
                 onChange={(event) => {
                   setWidth(event.target.value);
+                  setProfile("");
+                  setRim("");
                   setSize("");
                 }}
               >
                 <option value="">Any width</option>
-                {[
-                  155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255, 265,
-                  275, 285, 295, 305, 315, 325, 335, 345, 355,
-                ].map((value) => (
+                {widthOptions.map((value) => (
                   <option key={value}>{value}</option>
                 ))}
               </select>
@@ -934,6 +972,7 @@ function Shop({ add, products, loading }) {
                 value={profile}
                 onChange={(event) => {
                   setProfile(event.target.value);
+                  setRim("");
                   setSize("");
                 }}
               >
@@ -952,7 +991,10 @@ function Shop({ add, products, loading }) {
               }}
             >
               <option value="">12–24 inch</option>
-              {Array.from({ length: 13 }, (_, index) => index + 12).map(
+              {(category === "Rims"
+                ? Array.from({ length: 13 }, (_, index) => index + 12)
+                : tyreRimOptions
+              ).map(
                 (value) => (
                   <option key={value} value={value}>
                     {value} inch
@@ -989,16 +1031,21 @@ function Shop({ add, products, loading }) {
                     : `${width || "Any width"}/${profile || "Any profile"} R${rim || "12–24"}`}
                 </b>
               </span>
-              <button
-                onClick={() => {
-                  setRim("");
-                  setWidth("");
-                  setProfile("");
-                  setSize("");
-                }}
-              >
-                View full range
-              </button>
+              <div className="fitment-result-actions">
+                {category !== "Rims" && selectedManifestSize && (
+                  <Link to={selectedManifestSize.path}>Open exact size guide</Link>
+                )}
+                <button
+                  onClick={() => {
+                    setRim("");
+                    setWidth("");
+                    setProfile("");
+                    setSize("");
+                  }}
+                >
+                  View full range
+                </button>
+              </div>
             </div>
           )}
           {size && (
@@ -1153,6 +1200,13 @@ function ProductDetail({ products, add }) {
   const [scale, setScale] = useState(1.5);
   const localProduct = products.find((p) => p._id === id || p.slug === id);
   const product = localProduct || remote;
+  const productSizeGuide = product?.category === "Tyres"
+    ? findTyreSize({
+        width: product.width,
+        profile: product.profile,
+        rim: product.rimDiameter,
+      })
+    : null;
   useEffect(() => {
     if (!products.find((p) => p._id === id || p.slug === id))
       api(`/products/${id}`)
@@ -1192,13 +1246,43 @@ function ProductDetail({ products, add }) {
         </div>
       </main>
     );
+  const productPath = `/product/${product.slug || product._id}`;
+  const brandPath = product.category === "Rims"
+    ? "/rims"
+    : `/brands/${String(product.brand || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")}`;
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": `${SITE_URL}${productPath}#product`,
+    name: `${product.title} ${product.size}`,
+    description: product.description || product.desc,
+    image: [
+      `${SITE_URL}${product.image.startsWith("/") ? product.image : `/${product.image}`}`,
+    ],
+    sku: product.slug || product._id,
+    category: product.category,
+    brand: { "@type": "Brand", name: product.brand },
+    url: `${SITE_URL}${productPath}`,
+  };
   return (
     <main className="detail-page">
       <SeoHead
         title={`${product.title} ${product.size}`}
         description={`${product.description} Ask Wheels & Wheels Lahore for the current rate, availability and verified fitment.`}
-        canonical={`/product/${product.slug || product._id}`}
+        canonical={productPath}
         image={product.image}
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Tyre catalogue", path: "/shop" },
+          ...(productSizeGuide
+            ? [{ name: productSizeGuide.size, path: productSizeGuide.path }]
+            : []),
+          { name: product.title, path: productPath },
+        ]}
+        schemas={[productSchema]}
       />
       <div className="breadcrumbs">
         <Link to="/">Home</Link> / <Link to="/shop">Shop</Link> /{" "}
@@ -1241,13 +1325,7 @@ function ProductDetail({ products, add }) {
             </span>
             <span>
               <small>AVAILABILITY</small>
-              <b>
-                {product.onRequest
-                  ? "Confirm current availability"
-                  : product.stock > 0
-                  ? `${product.stock} in stock`
-                  : "Out of stock"}
-              </b>
+              <b>Confirm current availability</b>
             </span>
           </div>
           <button
@@ -1269,6 +1347,44 @@ function ProductDetail({ products, add }) {
             </span>
           </div>
         </div>
+      </section>
+      <section className="detail-information" aria-labelledby="product-information-title">
+        <article className="detail-specification-card">
+          <p className="eyebrow">CATALOGUE SPECIFICATION</p>
+          <h2 id="product-information-title">Check the complete requirement.</h2>
+          <dl>
+            <div><dt>Brand</dt><dd>{product.brand}</dd></div>
+            <div><dt>Product</dt><dd>{product.title}</dd></div>
+            <div><dt>Category</dt><dd>{product.category}</dd></div>
+            <div><dt>Labelled size</dt><dd>{product.size}</dd></div>
+            {product.width && <div><dt>Nominal width</dt><dd>{product.width} mm</dd></div>}
+            {product.profile && <div><dt>Aspect ratio</dt><dd>{product.profile}</dd></div>}
+            {product.rimDiameter && <div><dt>Wheel diameter</dt><dd>{product.rimDiameter} inch</dd></div>}
+            <div><dt>Use category</dt><dd>{product.vehicle || "Confirm for your vehicle"}</dd></div>
+          </dl>
+          <p className="detail-specification-note">
+            This catalogue entry is not a universal fitment approval. Confirm the vehicle,
+            model year, trim, placard size, load index, speed rating and wheel specification.
+          </p>
+        </article>
+        <aside className="detail-research-card" aria-label="Related buying information">
+          <p className="eyebrow">VERIFY BEFORE BUYING</p>
+          <h2>Research this option.</h2>
+          {productSizeGuide && (
+            <Link to={productSizeGuide.path}>
+              Read the {productSizeGuide.size} size guide <FaChevronRight />
+            </Link>
+          )}
+          <Link to={brandPath}>
+            {product.category === "Rims" ? "Explore alloy rims" : `Explore ${product.brand} tyres`} <FaChevronRight />
+          </Link>
+          <Link to="/guides/how-to-choose-the-right-tyre-size-pakistan">
+            Learn how to read tyre size <FaChevronRight />
+          </Link>
+          <Link to={`/quote?tyreSize=${encodeURIComponent(product.size || "")}&message=${encodeURIComponent(`Please confirm the current rate and complete specification for ${product.title}.`)}`}>
+            Request current rate <FaChevronRight />
+          </Link>
+        </aside>
       </section>
       {zoom && (
         <div
@@ -2781,6 +2897,9 @@ function Footer() {
           <h4>Helpful information</h4>
           <p className="footer-links">
             <Link to="/guides">Tyre blog &amp; guides</Link>
+            <Link to="/guides/topics/tyre-size-and-fitment">Size &amp; fitment guides</Link>
+            <Link to="/guides/topics/buying-tyres-in-pakistan">Tyre buying guides</Link>
+            <Link to="/guides/topics/tyre-care-and-road-safety">Tyre care guides</Link>
             <Link to="/services">Wheel services</Link>
             <Link to="/about">About us</Link>
             <Link to="/lahore-tyre-shop">Lahore tyre shop</Link>
@@ -2896,6 +3015,7 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
   const RouteVehiclesHub = routeComponents.VehiclesHub || VehiclesHub;
   const RouteTyreSizesHub = routeComponents.TyreSizesHub || TyreSizesHub;
   const RouteGuidesHub = routeComponents.GuidesHub || GuidesHub;
+  const RouteGuideTopicPage = routeComponents.GuideTopicPage || GuideTopicPage;
   const RouteGuideArticle = routeComponents.GuideArticle || GuideArticle;
   const RouteCommercialLandingPage = routeComponents.CommercialLandingPage || CommercialLandingPage;
   const RouteBrandLandingPage = routeComponents.BrandLandingPage || BrandLandingPage;
@@ -2930,6 +3050,7 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
         <Route path="/tyre-sizes" element={<RouteTyreSizesHub />} />
         <Route path="/tyre-sizes/:slug" element={<RouteSizeLandingPage />} />
         <Route path="/guides" element={<RouteGuidesHub />} />
+        <Route path="/guides/topics/:slug" element={<RouteGuideTopicPage />} />
         <Route path="/guides/:slug" element={<RouteGuideArticle />} />
         <Route path="/about" element={<RouteAboutPage />} />
         <Route path="/contact" element={<RouteContactPage />} />
