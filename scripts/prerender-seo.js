@@ -11,6 +11,7 @@ import {
   TYRE_RIM_HUBS,
 } from "../src/Data/seoContent.js";
 import { COMMERCIAL_PAGES } from "../src/Data/commercialPages.js";
+import { TYRE_RATES_PAGE, VEHICLE_MAKE_PAGES } from "../src/Data/marketPages.js";
 import PRODUCTS from "../src/Data/productsData.js";
 import { SERVICES } from "../src/Data/services.js";
 import { render } from "../dist-ssr/entry-server.js";
@@ -27,30 +28,6 @@ const siteUrl = /^https?:\/\//.test(deploymentHost)
   ? deploymentHost.replace(/\/$/, "")
   : `${deploymentHost.startsWith("localhost") ? "http" : "https"}://${deploymentHost.replace(/\/$/, "")}`;
 
-const businessSchema = {
-  "@context": "https://schema.org",
-  "@type": "AutomotiveBusiness",
-  "@id": `${siteUrl}/#business`,
-  name: "Wheels & Wheels",
-  url: siteUrl,
-  telephone: ["+923214229594", "+923390045836"],
-  email: "wheelsandwheelsinfo@gmail.com",
-  address: {
-    "@type": "PostalAddress",
-    streetAddress:
-      "Old Tyre Market, near Rawali Cinema and Railway Station, Aslam Khan Road",
-    addressLocality: "Lahore",
-    addressCountry: "PK",
-  },
-  areaServed: { "@type": "City", name: "Lahore" },
-  openingHoursSpecification: {
-    "@type": "OpeningHoursSpecification",
-    dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-    opens: "12:00",
-    closes: "21:00",
-  },
-};
-
 const escapeHtml = (value = "") =>
   String(value)
     .replaceAll("&", "&amp;")
@@ -59,8 +36,24 @@ const escapeHtml = (value = "") =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
-const stripSiteName = (title = "") =>
-  title.includes("Wheels & Wheels") ? title : `${title} | Wheels & Wheels`;
+const titleIntentSuffixes = [
+  "Sizes and Current Rates",
+  "Brands and Current Rates",
+  "Size Guide",
+  "Current Rate Guide",
+];
+const stripSiteName = (title = "") => {
+  let base = String(title || "Tyres and Alloy Rims in Lahore").trim();
+  const brandedSuffix = " | Wheels & Wheels";
+  if (base.endsWith(brandedSuffix)) base = base.slice(0, -brandedSuffix.length);
+  for (const suffix of titleIntentSuffixes) {
+    const intentSuffix = ` | ${suffix}`;
+    if (base.endsWith(intentSuffix)) base = base.slice(0, -intentSuffix.length);
+  }
+  if (base.toLowerCase().includes("wheels & wheels")) return base;
+  const branded = `${base}${brandedSuffix}`;
+  return branded.length <= 65 ? branded : base;
+};
 
 const staticPages = [
   {
@@ -78,6 +71,14 @@ const staticPages = [
     h1: "Find the right tyres for your car",
     intro: "Browse useful tyre references, then verify the exact size, load rating, speed rating and vehicle specification before purchase.",
   },
+  {
+    route: TYRE_RATES_PAGE.route,
+    title: TYRE_RATES_PAGE.title,
+    description: TYRE_RATES_PAGE.metaDescription,
+    h1: TYRE_RATES_PAGE.heroTitle,
+    intro: TYRE_RATES_PAGE.lede,
+    updatedAt: TYRE_RATES_PAGE.updatedAt,
+  },
   { route: "/brands", title: "Tyre Brands in Lahore", description: "Compare premium, Japanese and Chinese tyre brands available on request in Lahore.", h1: "Compare tyre brands in Lahore", intro: "Understand brand positioning and ask for options in your exact tyre size." },
   { route: "/vehicles", title: "Find Tyres by Vehicle in Pakistan", description: "Browse common tyre-size references for popular cars in Pakistan and request final fitment verification.", h1: "Find tyres by vehicle", intro: "Choose a make and model, then confirm model year, trim, placard and existing sidewall size." },
   { route: "/tyre-sizes", title: "Popular Tyre Sizes in Lahore", description: "Browse popular tyre sizes from 12 to 24 inches and request current brand options in Lahore.", h1: "Browse tyres by complete size", intro: "Use width, profile and rim diameter together for a useful tyre search." },
@@ -92,7 +93,6 @@ const staticPages = [
       { title: "How the website works", text: "Share the vehicle, full tyre size, rim requirement or wheel service needed. The team then confirms the current rate and next step directly." },
       { title: "Lead-only service", text: "Online payment is not enabled. Customers continue by call, official WhatsApp or the quotation form." },
     ],
-    schemas: [businessSchema],
   },
   {
     route: "/contact",
@@ -108,7 +108,6 @@ const staticPages = [
       { question: "Which number is the official website WhatsApp?", answer: "The official website WhatsApp number is 0339 0045836. Both 0321 4229594 and 0339 0045836 can receive calls." },
       { question: "Why does the website ask me to request the current rate?", answer: "The website is lead-only. Contact the team to confirm the current rate and availability for the exact tyre, rim or service required." },
     ],
-    schemas: [businessSchema],
   },
   {
     route: "/services",
@@ -128,7 +127,6 @@ const staticPages = [
       { title: "Location", text: "Old Tyre Market, near Rawali Cinema and Railway Station, Aslam Khan Road, Lahore." },
       { title: "Contact", text: "Call 0321 4229594 or 0339 0045836. Official WhatsApp: 0339 0045836." },
     ],
-    schemas: [businessSchema],
   },
   {
     route: "/faq",
@@ -142,6 +140,14 @@ const staticPages = [
       { question: "Can I pay through the website?", answer: "No. The website currently collects enquiries and provides contact routes; it does not accept online payments." },
       { question: "How should I request a tyre rate?", answer: "Share the complete tyre size printed on the sidewall and your vehicle details by call, official WhatsApp or the online quotation form." },
     ],
+  },
+  {
+    route: "/privacy",
+    title: "Privacy and Website Data Use",
+    description: "Learn what information Wheels & Wheels collects through tyre and rim enquiries, how contact-click measurement works, and how to request a data review.",
+    h1: "Privacy and data use",
+    intro: "How quotation details and limited website measurement are handled by Wheels & Wheels.",
+    updatedAt: "2026-10-05",
   },
   {
     route: "/shop",
@@ -203,6 +209,24 @@ const vehiclePages = SEO_VEHICLES.map((item) => ({
     },
   ],
   faqs: item.faqs || [],
+}));
+
+const vehicleMakePages = Object.values(VEHICLE_MAKE_PAGES).map((item) => ({
+  route: item.route,
+  title: item.title,
+  description: item.metaDescription,
+  h1: item.heroTitle,
+  intro: item.intro,
+  sections: [
+    { title: "Fitment checks", text: item.buyerFocus.join(" · ") },
+    {
+      title: `${item.make} model guides`,
+      text: SEO_VEHICLES.filter((vehicle) => vehicle.make === item.make)
+        .map((vehicle) => vehicle.name)
+        .join(" · "),
+    },
+  ],
+  updatedAt: TYRE_RATES_PAGE.updatedAt,
 }));
 
 const sizePages = SEO_SIZES.map((item) => ({
@@ -372,6 +396,7 @@ const productPages = PRODUCTS.filter((item) => item.slug).map((item) => ({
 const pages = [
   ...staticPages,
   ...brandPages,
+  ...vehicleMakePages,
   ...vehiclePages,
   ...rimHubPages,
   ...sizePages,
@@ -382,39 +407,26 @@ const pages = [
   ...productPages,
 ];
 
-function structuredData(page, canonical) {
-  const imageUrl = page.image
-    ? `${siteUrl}${page.image.startsWith("/") ? page.image : `/${page.image}`}`
-    : `${siteUrl}/wheelpic.jpg`;
-  return [
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "@id": `${canonical}#webpage`,
-      name: page.h1,
-      description: page.description,
-      url: canonical,
-      image: imageUrl,
-      dateModified: page.updatedAt || undefined,
-      publisher: {
-        "@type": "Organization",
-        name: "Wheels & Wheels",
-        url: siteUrl,
-        logo: {
-          "@type": "ImageObject",
-          url: `${siteUrl}/wheels-and-wheels-logo-600.png`,
-        },
-      },
-    },
-  ];
-}
-
 for (const page of pages) {
-  const canonical = `${siteUrl}${page.route === "/" ? "" : page.route}`;
+  const canonical = `${siteUrl}${page.route === "/" ? "/" : page.route}`;
   const title = stripSiteName(page.title);
   const socialImage = page.image
     ? `${siteUrl}${page.image.startsWith("/") ? page.image : `/${page.image}`}`
     : `${siteUrl}/wheelpic.jpg`;
+  const socialImagePath = new URL(socialImage).pathname;
+  const socialImageIsGuide = socialImagePath.startsWith("/images/guides/");
+  const socialImageWidth = socialImageIsGuide
+    ? socialImagePath.includes("-960.") ? 960 : 1600
+    : socialImagePath === "/Rim1.jpg" ? 1280
+      : socialImagePath === "/tyre.jpg" ? 612 : 894;
+  const socialImageHeight = socialImageIsGuide
+    ? socialImagePath.includes("-960.") ? 540 : 900
+    : socialImagePath === "/Rim1.jpg" ? 852
+      : socialImagePath === "/tyre.jpg" ? 612 : 894;
+  const socialImageType = socialImagePath.endsWith(".webp")
+    ? "image/webp"
+    : socialImagePath.endsWith(".png") ? "image/png" : "image/jpeg";
+  const socialImageAlt = `${page.h1} | Wheels & Wheels`;
   const renderedContent = await render(page.route, { siteUrl });
   let html = template
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`)
@@ -443,10 +455,40 @@ for (const page of pages) {
       `<meta property="og:image" content="${socialImage}" />`,
     )
     .replace(
+      /<meta property="og:image:alt" content="[^"]*"\s*\/?>/i,
+      `<meta property="og:image:alt" content="${escapeHtml(socialImageAlt)}" />`,
+    )
+    .replace(
+      /<meta property="og:image:width" content="[^"]*"\s*\/?>/i,
+      `<meta property="og:image:width" content="${socialImageWidth}" />`,
+    )
+    .replace(
+      /<meta property="og:image:height" content="[^"]*"\s*\/?>/i,
+      `<meta property="og:image:height" content="${socialImageHeight}" />`,
+    )
+    .replace(
+      /<meta property="og:image:type" content="[^"]*"\s*\/?>/i,
+      `<meta property="og:image:type" content="${socialImageType}" />`,
+    )
+    .replace(
+      /<meta name="twitter:title" content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
+    )
+    .replace(
+      /<meta name="twitter:description" content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:description" content="${escapeHtml(page.description)}" />`,
+    )
+    .replace(
+      /<meta name="twitter:image" content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:image" content="${socialImage}" />`,
+    )
+    .replace(
+      /<meta name="twitter:image:alt" content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:image:alt" content="${escapeHtml(socialImageAlt)}" />`,
+    )
+    .replace(
       "</head>",
-      `<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" /><meta name="twitter:title" content="${escapeHtml(title)}" /><meta name="twitter:description" content="${escapeHtml(page.description)}" /><meta name="twitter:image" content="${socialImage}" />${page.article && page.publishedAt ? `<meta property="article:published_time" content="${page.publishedAt}" />` : ""}${page.article && page.updatedAt ? `<meta property="article:modified_time" content="${page.updatedAt}" />` : ""}${structuredData(page, canonical)
-        .map((schema) => `<script type="application/ld+json">${JSON.stringify(schema).replaceAll("<", "\\u003c")}</script>`)
-        .join("")}</head>`,
+      `<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" />${page.article && page.publishedAt ? `<meta property="article:published_time" content="${page.publishedAt}" />` : ""}${page.article && page.updatedAt ? `<meta property="article:modified_time" content="${page.updatedAt}" />` : ""}</head>`,
     )
     .replace('<div id="root"></div>', `<div id="root">${renderedContent}</div>`);
   const target = page.route === "/" ? dist : path.join(dist, page.route.slice(1));
@@ -517,7 +559,7 @@ const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://w
   .filter((page) => !page.excludeFromSitemap)
   .map(
     (page) =>
-      `  <url><loc>${siteUrl}${page.route === "/" ? "" : page.route}</loc><lastmod>${page.updatedAt || SEO_CONTENT_UPDATED}</lastmod></url>`,
+      `  <url><loc>${siteUrl}${page.route === "/" ? "/" : page.route}</loc><lastmod>${page.updatedAt || SEO_CONTENT_UPDATED}</lastmod></url>`,
   )
   .join("\n")}\n</urlset>\n`;
 await writeFile(path.join(dist, "sitemap.xml"), sitemap, "utf8");

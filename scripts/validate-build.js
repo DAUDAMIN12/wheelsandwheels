@@ -6,6 +6,7 @@ import {
   SEO_SIZES,
   TYRE_RIM_HUBS,
 } from "../src/Data/seoContent.js";
+import { TYRE_RATES_PAGE, VEHICLE_MAKE_PAGES } from "../src/Data/marketPages.js";
 import TYRE_SIZE_MANIFEST from "../src/Data/tyreSizeManifest.js";
 
 const dist = path.resolve("dist");
@@ -32,6 +33,9 @@ const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(
 );
 const sitemapPaths = new Set(locations.map((location) => new URL(location).pathname || "/"));
 const requiredHierarchyPaths = [
+  TYRE_RATES_PAGE.route,
+  ...Object.values(VEHICLE_MAKE_PAGES).map((item) => item.route),
+  "/privacy",
   ...SEO_SIZES.map((item) => item.path || `/tyre-sizes/${item.slug}`),
   ...TYRE_RIM_HUBS.filter((item) => !item.noIndex).map((item) => item.path),
   ...GUIDES.map((item) => item.path || `/guides/${item.slug}`),
@@ -39,6 +43,7 @@ const requiredHierarchyPaths = [
 ];
 const manifestSizePaths = new Set(TYRE_SIZE_MANIFEST.map((item) => item.path));
 const publishedSizePaths = new Set(SEO_SIZES.map((item) => item.path));
+const requiredRimDiameters = Array.from({ length: 13 }, (_, index) => index + 12);
 
 assert(locations.length >= 50, "The sitemap contains too few indexable pages");
 assert(new Set(locations).size === locations.length, "Duplicate sitemap URLs found");
@@ -47,6 +52,16 @@ assert(
     [...manifestSizePaths].every((item) => publishedSizePaths.has(item)),
   "Published tyre-size pages do not exactly match the supported size manifest",
 );
+requiredRimDiameters.forEach((rim) => {
+  assert(
+    sitemapPaths.has(`/tyre-sizes/${rim}-inch`),
+    `Missing ${rim}-inch tyre hub from sitemap`,
+  );
+  assert(
+    TYRE_SIZE_MANIFEST.some((item) => Number(item.rim) === rim),
+    `Tyre-size manifest has no exact fitment for R${rim}`,
+  );
+});
 requiredHierarchyPaths.forEach((requiredPath) => {
   assert(sitemapPaths.has(requiredPath), `Missing hierarchy URL from sitemap: ${requiredPath}`);
 });
@@ -93,6 +108,24 @@ for (const location of locations) {
     [...html.matchAll(/<link rel="canonical"/g)].length === 1,
     `Expected exactly one canonical tag on ${url.pathname}`,
   );
+  assert(
+    [...html.matchAll(/<meta name="description"/g)].length === 1,
+    `Expected exactly one meta description on ${url.pathname}`,
+  );
+  for (const selector of [
+    'property="og:title"',
+    'property="og:description"',
+    'property="og:image"',
+    'property="og:url"',
+    'name="twitter:title"',
+    'name="twitter:description"',
+    'name="twitter:image"',
+  ]) {
+    assert(
+      [...html.matchAll(new RegExp(`<meta ${selector}`, "g"))].length === 1,
+      `Expected exactly one ${selector} tag on ${url.pathname}`,
+    );
+  }
 
   assert(Boolean(title), `Missing title on ${url.pathname}`);
   assert(Boolean(canonical), `Missing canonical on ${url.pathname}`);
@@ -132,6 +165,8 @@ for (const location of locations) {
   }
   const schemaFingerprints = new Map();
   const schemaIdentity = new Map();
+  let graphBlocks = 0;
+  const graphTypes = new Set();
   schemas.forEach((schema, index) => {
     try {
       const parsed = JSON.parse(schema[1]);
@@ -142,19 +177,31 @@ for (const location of locations) {
         `Duplicate JSON-LD block ${previousFingerprint + 1} and ${index + 1} on ${url.pathname}`,
       );
       schemaFingerprints.set(fingerprint, index);
-      if (parsed?.["@id"]) {
-        const identity = `${parsed["@type"] || "Thing"}|${parsed["@id"]}`;
+      const nodes = Array.isArray(parsed?.["@graph"]) ? parsed["@graph"] : [parsed];
+      if (Array.isArray(parsed?.["@graph"])) graphBlocks += 1;
+      nodes.forEach((node) => {
+        if (node?.["@type"]) graphTypes.add(node["@type"]);
+        if (!node?.["@id"]) return;
+        const identity = `${node["@type"] || "Thing"}|${node["@id"]}`;
         const previousIdentity = schemaIdentity.get(identity);
         assert(
           previousIdentity === undefined,
-          `Duplicate JSON-LD identity ${identity} on ${url.pathname}`,
+          `Duplicate JSON-LD identity ${identity} in blocks ${previousIdentity + 1} and ${index + 1} on ${url.pathname}`,
         );
         schemaIdentity.set(identity, index);
-      }
+      });
+      assert(
+        !/"(?:url|contentUrl|item)"\s*:\s*"\//.test(fingerprint),
+        `Relative URL found in JSON-LD on ${url.pathname}`,
+      );
     } catch {
       failures.push(`Invalid JSON-LD block ${index + 1} on ${url.pathname}`);
     }
   });
+  assert(graphBlocks === 1, `Expected one connected @graph on ${url.pathname}`);
+  for (const schemaType of ["AutomotiveBusiness", "WebSite", "WebPage"]) {
+    assert(graphTypes.has(schemaType), `Missing ${schemaType} graph node on ${url.pathname}`);
+  }
 
   const mainText = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")

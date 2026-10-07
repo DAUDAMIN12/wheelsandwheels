@@ -18,7 +18,11 @@ const EMAIL = "wheelsandwheelsinfo@gmail.com";
 const ADDRESS =
   "Old Tyre Market, near Rawali Cinema and Railway Station, Aslam Khan Road, Lahore";
 const MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ADDRESS)}`;
-const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/$/, "");
+const siteUrl = () => (
+  import.meta.env.VITE_SITE_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "") ||
+  "https://wheelsandwheels.vercel.app"
+).replace(/\/$/, "");
 
 const SERVICES = [
   {
@@ -42,8 +46,8 @@ const SERVICES = [
 ];
 
 function absoluteUrl(path) {
-  if (!SITE_URL) return undefined;
-  return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const base = siteUrl();
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 function serviceSchemas() {
@@ -531,6 +535,99 @@ export function FAQPage() {
           <Link className="growth-link-card" to="/services"><span>Explore wheel services</span><FaChevronRight aria-hidden="true" /></Link>
           <Link className="growth-link-card" to="/guides"><span>Read tyre guides</span><FaChevronRight aria-hidden="true" /></Link>
         </div>
+      </section>
+    </main>
+  );
+}
+
+export function PrivacyPage() {
+  const breadcrumbs = [
+    { name: "Home", path: "/" },
+    { name: "Privacy", path: "/privacy" },
+  ];
+  return (
+    <main className="growth-page business-page policy-page">
+      <SeoHead
+        title="Privacy and Website Data Use"
+        description="Learn what information Wheels & Wheels collects through tyre and rim enquiries, how contact-click measurement works, and how to request a data review."
+        canonical="/privacy"
+        breadcrumbs={breadcrumbs}
+      />
+      <Breadcrumbs items={breadcrumbs} />
+      <header className="growth-hero policy-hero">
+        <div className="growth-hero-copy">
+          <p className="eyebrow">CLEAR WEBSITE DATA PRACTICES</p>
+          <h1>Privacy and data use.</h1>
+          <p className="growth-lede">
+            This website is built to answer tyre and rim enquiries. This page
+            explains what is stored when you submit an RFQ and what limited
+            measurement is used to improve the enquiry journey.
+          </p>
+          <p className="growth-assurance">Last updated 5 October 2026</p>
+        </div>
+      </header>
+      <section className="growth-article-body section policy-content" aria-label="Privacy details">
+        <article className="growth-copy-section">
+          <p className="eyebrow">INFORMATION YOU SEND</p>
+          <h2>Quotation and contact details</h2>
+          <p>
+            An RFQ can include your name, phone number, optional email and city,
+            vehicle, tyre size, budget and message. We use these details to
+            understand the request, contact you and manage follow-up in the
+            private sales dashboard.
+          </p>
+        </article>
+        <article className="growth-copy-section">
+          <p className="eyebrow">LIMITED MEASUREMENT</p>
+          <h2>How visitors reach an enquiry</h2>
+          <p>
+            The site records call-button, WhatsApp-button and tyre-size-search
+            events. It can also record the landing page, current page, broad
+            device class, referral hostname and path, and campaign tags such as
+            UTM source. These event records do not contain your call or WhatsApp
+            conversation.
+          </p>
+        </article>
+        <article className="growth-copy-section">
+          <p className="eyebrow">STORAGE AND RETENTION</p>
+          <h2>How long information remains</h2>
+          <p>
+            Contact-event records are configured to expire after 180 days.
+            RFQ records are retained while needed for customer follow-up,
+            business records, security and applicable legal obligations. The
+            website database and configured email service process RFQ details.
+          </p>
+        </article>
+        <article className="growth-copy-section">
+          <p className="eyebrow">WHAT IS NOT MEASURED</p>
+          <h2>No payment or conversation capture</h2>
+          <p>
+            The website does not accept card, bank or wallet payments. Its lead
+            measurement does not intentionally store the contents of phone calls
+            or WhatsApp chats. Hosting and security providers may process
+            standard technical logs required to operate and protect the site.
+          </p>
+        </article>
+        <article className="growth-copy-section">
+          <p className="eyebrow">EXTERNAL SERVICES</p>
+          <h2>Links to other platforms</h2>
+          <p>
+            WhatsApp, Facebook, Instagram, Google Maps and your email provider
+            operate under their own privacy terms once you follow an external
+            link. Review the destination before sharing information there.
+          </p>
+        </article>
+        <article className="growth-copy-section">
+          <p className="eyebrow">QUESTIONS OR REQUESTS</p>
+          <h2>Ask us to review your information</h2>
+          <p>
+            Email <a href={`mailto:${EMAIL}`}>{EMAIL}</a> with enough detail to
+            identify the RFQ, or call <a href={`tel:${SALES_PHONE}`}>0321 4229594</a>.
+            We may need to verify the requester before reviewing, correcting or
+            deleting customer information, subject to legitimate record-keeping
+            and security requirements.
+          </p>
+        </article>
       </section>
     </main>
   );

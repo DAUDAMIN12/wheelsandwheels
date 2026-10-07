@@ -1,6 +1,12 @@
 import "dotenv/config";
 
 const baseUrl = (process.argv[2] || "http://127.0.0.1:5000").replace(/\/$/, "");
+const targetUrl = new URL(baseUrl);
+const isLoopback = ["127.0.0.1", "localhost", "::1"].includes(
+  targetUrl.hostname,
+);
+if (!isLoopback && targetUrl.protocol !== "https:")
+  throw new Error("Remote smoke tests require an HTTPS target");
 const failures = [];
 let checks = 0;
 
@@ -9,7 +15,11 @@ const check = (condition, message) => {
   if (!condition) failures.push(message);
 };
 
-const request = (path, options) => fetch(`${baseUrl}${path}`, options);
+const request = (path, options = {}) =>
+  fetch(`${baseUrl}${path}`, {
+    ...options,
+    signal: AbortSignal.timeout(15_000),
+  });
 const readJson = async (response) => {
   const text = await response.text();
   try {
@@ -22,12 +32,21 @@ const readJson = async (response) => {
 const pageChecks = [
   ["/", 200, false],
   ["/shop", 200, false],
+  ["/shop?q=michelin", 200, false],
+  ["/tyre-prices-pakistan", 200, false],
+  ["/vehicles/suzuki", 200, false],
+  ["/vehicles/toyota", 200, false],
+  ["/vehicles/honda", 200, false],
+  ["/privacy", 200, false],
   ["/brands/michelin", 200, false],
   ["/brands/nitto", 200, false],
   ["/tyre-sizes", 200, false],
-  ["/tyre-sizes/15-inch", 200, false],
+  ...Array.from({ length: 13 }, (_, index) => [
+    `/tyre-sizes/${index + 12}-inch`,
+    200,
+    false,
+  ]),
   ["/tyre-sizes/195-65-r15", 200, false],
-  ["/tyre-sizes/21-inch", 200, true],
   ["/product/bridgestone-ecopia-ep300", 200, false],
   ["/guides/topics/tyre-size-and-fitment", 200, false],
   ["/guides/how-to-choose-the-right-tyre-size-pakistan", 200, false],
@@ -101,13 +120,35 @@ const honeypotRfq = await request("/api/inquiries", {
 });
 check(honeypotRfq.status === 202, `RFQ honeypot returned ${honeypotRfq.status}`);
 
-if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+const forgedConversionEvent = await request("/api/events", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ eventType: "quote_submit", currentPath: "/quote" }),
+});
+check(
+  forgedConversionEvent.status === 400,
+  `Forged RFQ event returned ${forgedConversionEvent.status}, expected 400`,
+);
+
+if (isLoopback || process.env.SMOKE_MUTATION_TESTS === "true") {
+  const adminMeasurementEvent = await request("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventType: "call_click", currentPath: "/admin" }),
+  });
+  check(
+    adminMeasurementEvent.status === 400,
+    `Admin measurement event returned ${adminMeasurementEvent.status}, expected 400`,
+  );
+}
+
+if (process.env.SMOKE_ADMIN_EMAIL && process.env.SMOKE_ADMIN_PASSWORD) {
   const login = await request("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: process.env.ADMIN_EMAIL,
-      password: process.env.ADMIN_PASSWORD,
+      email: process.env.SMOKE_ADMIN_EMAIL,
+      password: process.env.SMOKE_ADMIN_PASSWORD,
     }),
   });
   const loginBody = await readJson(login);
@@ -123,6 +164,8 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     check(Array.isArray(summaryBody.inquiryStatuses), "Admin summary is missing the RFQ funnel");
     check(typeof summaryBody.emailConfigured === "boolean", "Admin summary is missing email configuration health");
     check(typeof summaryBody.emailDeliveryIssues === "number", "Admin summary is missing email delivery issue totals");
+    check(typeof summaryBody.leadAnalytics?.rfqSubmissions === "number", "Admin summary is missing trusted RFQ attribution totals");
+    check(Array.isArray(summaryBody.leadAnalytics?.totals), "Admin summary is missing contact-click totals");
   }
 }
 

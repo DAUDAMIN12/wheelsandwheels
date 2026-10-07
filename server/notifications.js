@@ -6,6 +6,13 @@ const sender = () => process.env.SMTP_USER || recipient();
 
 let cachedTransport;
 
+const deliveryTimeoutMs = () => {
+  const configured = Number(process.env.SMTP_DELIVERY_TIMEOUT_MS || 12_000);
+  return Number.isFinite(configured)
+    ? Math.min(20_000, Math.max(5_000, configured))
+    : 12_000;
+};
+
 export const emailDeliveryConfigured = () =>
   Boolean(sender() && process.env.SMTP_PASS);
 
@@ -55,13 +62,24 @@ export async function sendNotification({ subject, heading, fields, replyTo, to }
         `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#777">${escapeHtml(label)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:700">${escapeHtml(value)}</td></tr>`,
     )
     .join("");
-  const delivery = await mailer.sendMail({
+  let timer;
+  const send = mailer.sendMail({
     from: `Wheels & Wheels Website <${sender()}>`,
     to: safeHeader(to || recipient()),
     replyTo: replyTo ? safeHeader(replyTo) : undefined,
     subject: safeHeader(subject),
     text: `${heading}\n\n${fields.map(([key, value]) => `${key}: ${value || "—"}`).join("\n")}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto"><div style="background:#111;color:#fff;padding:24px"><h1 style="margin:0">${escapeHtml(heading)}</h1></div><table style="width:100%;border-collapse:collapse">${rows}</table><p style="color:#777;font-size:12px;padding:18px 8px">${to ? "Wheels & Wheels · Official WhatsApp +92 339 0045836" : "Open the Wheels & Wheels admin dashboard to manage this record."}</p></div>`,
+  });
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Email delivery exceeded its safe request deadline");
+      error.code = "ETIMEDOUT";
+      reject(error);
+    }, deliveryTimeoutMs());
+  });
+  const delivery = await Promise.race([send, timeout]).finally(() => {
+    clearTimeout(timer);
   });
   const accepted = Array.isArray(delivery.accepted) ? delivery.accepted : [];
   const rejected = Array.isArray(delivery.rejected) ? delivery.rejected : [];

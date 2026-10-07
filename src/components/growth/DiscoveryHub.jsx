@@ -10,6 +10,7 @@ import {
 } from "react-icons/fa";
 import * as seoContent from "../../Data/seoContent.js";
 import SeoHead from "./SeoHead.jsx";
+import { trackLeadEvent } from "../../lib/leadTracking.js";
 
 const WHATSAPP = "923390045836";
 
@@ -110,8 +111,8 @@ function TyreSizeDirectory({ hubs }) {
           <p className="eyebrow">12–24 INCH DIRECTORY</p>
           <h2 id="tyre-size-directory-title">Choose a wheel diameter, then an exact size</h2>
           <p>
-            Every linked profile below comes from the current vehicle-reference or catalogue data.
-            Diameters without an exact published profile remain enquiry-only.
+            Every linked profile below is a published size reference with calculated dimensions.
+            Vehicle fitment, ratings, brand availability and the current rate still require confirmation.
           </p>
         </div>
       </div>
@@ -127,9 +128,19 @@ function TyreSizeDirectory({ hubs }) {
             </p>
             {!!hub.sizes.length && (
               <div className="rim-size-links" aria-label={`${hub.rim}-inch exact tyre sizes`}>
-                {hub.sizes.map((size) => (
+                {hub.sizes.slice(0, 8).map((size) => (
                   <Link key={size.slug} to={size.path}>{size.size}</Link>
                 ))}
+                {hub.sizes.length > 8 && (
+                  <details className="rim-size-more">
+                    <summary>Show {hub.sizes.length - 8} more R{hub.rim} sizes</summary>
+                    <div>
+                      {hub.sizes.slice(8).map((size) => (
+                        <Link key={size.slug} to={size.path}>{size.size}</Link>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
             )}
             <Link className="guide-read-link" to={hub.path}>
@@ -155,10 +166,15 @@ export default function DiscoveryHub({ focus = "all" }) {
     profile: String(preferredSize?.aspectRatio || 65),
     rim: String(preferredSize?.rim || 15),
   });
-  const widthOptions = [...new Set(sizes.map((item) => item.width))].sort((a, b) => a - b);
+  const widthOptions = [...new Set(
+    sizes.filter((item) => item.width >= 155).map((item) => item.width),
+  )].sort((a, b) => a - b);
   const profileOptions = [...new Set(
     sizes
-      .filter((item) => String(item.width) === fitment.width)
+      .filter(
+        (item) =>
+          item.aspectRatio >= 35 && String(item.width) === fitment.width,
+      )
       .map((item) => item.aspectRatio),
   )].sort((a, b) => a - b);
   const rimOptions = [...new Set(
@@ -224,6 +240,10 @@ export default function DiscoveryHub({ focus = "all" }) {
 
   const submitFitment = (event) => {
     event.preventDefault();
+    trackLeadEvent("size_search", {
+      contextType: "tyre_size",
+      contextValue: `${fitment.width}/${fitment.profile} R${fitment.rim}`,
+    });
     const match = sizes.find(
       (item) =>
         String(item.width) === fitment.width &&
@@ -234,7 +254,9 @@ export default function DiscoveryHub({ focus = "all" }) {
   };
 
   const selectWidth = (width) => {
-    const next = sizes.find((item) => String(item.width) === width);
+    const next = sizes.find(
+      (item) => item.aspectRatio >= 35 && String(item.width) === width,
+    );
     if (!next) return;
     setFitment({ width, profile: String(next.aspectRatio), rim: String(next.rim) });
   };

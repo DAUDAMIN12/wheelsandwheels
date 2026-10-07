@@ -845,7 +845,7 @@ export const SEO_SIZES = baseSizePages.map((item) => {
     ...item,
     path: `/tyre-sizes/${item.slug}`,
     seoTitle: `${item.size} Tyres in Lahore | Rate & Fitment`,
-    metaDescription: `${item.size} tyre guide for Lahore: understand the size, see data-backed vehicle and catalogue references, and ask for today's rate and verified fitment.`,
+    metaDescription: `${item.size} tyre guide for Lahore: understand the dimensions, review available vehicle and catalogue references, and ask for today's rate and verified fitment.`,
     heroTitle: `${item.size} tyres in Lahore`,
     vehicleReferences,
     catalogueReferences,
@@ -949,15 +949,15 @@ export const TYRE_RIM_HUBS = Array.from({ length: 13 }, (_, index) => index + 12
     seoTitle: `${rim}-inch Tyre Sizes in Lahore | Fitment Directory`,
     heroTitle: `${rim}-inch tyre size directory`,
     metaDescription: sizes.length
-      ? `Browse ${sizes.length} data-backed ${rim}-inch tyre sizes, from ${firstSize} to ${lastSize}. Open an exact profile page and request a current Lahore rate.`
+      ? `Browse ${sizes.length} published ${rim}-inch tyre-size references, from ${firstSize} to ${lastSize}. Open an exact profile page and request a current Lahore rate.`
       : `Ask Wheels & Wheels about a complete ${rim}-inch tyre requirement. Exact width, profile, ratings, vehicle and wheel fitment must be confirmed.`,
     summary: sizes.length
-      ? `Start with the complete sidewall code. This directory contains ${sizes.length} exact ${rim}-inch fitments supported by our current vehicle or catalogue data: ${examples}.`
+      ? `Start with the complete sidewall code. This directory contains ${sizes.length} published ${rim}-inch size references: ${examples}. Each one still requires vehicle, rating and current-stock confirmation.`
       : `We accept enquiries for ${rim}-inch requirements, but our current published data does not contain a verified exact width/profile combination for this diameter. Send the complete sidewall code for a manual check.`,
     verificationNote: FITMENT_NOTICE,
     highlights: [
       { title: "Wheel diameter", description: `R${rim} means a radial tyre designed for a ${rim}-inch wheel.` },
-      { title: "Published exact sizes", description: sizes.length ? `${sizes.length} data-backed combinations.` : "No exact combination published yet." },
+      { title: "Published exact sizes", description: sizes.length ? `${sizes.length} researched size references with calculated dimensions.` : "No exact combination published yet." },
       { title: "Fitment rule", description: "Width, profile, load and speed rating still matter; rim diameter alone is not enough." },
     ],
     sections: [

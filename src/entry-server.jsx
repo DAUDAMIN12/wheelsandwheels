@@ -20,8 +20,13 @@ import {
   ContactPage,
   FAQPage,
   LahoreTyreShopPage,
+  PrivacyPage,
   ServicesPage,
 } from "./components/growth/BusinessPages.jsx";
+import {
+  TyreRatesPage,
+  VehicleMakePage,
+} from "./components/growth/MarketPages.jsx";
 
 const routeComponents = {
   AboutPage,
@@ -35,10 +40,13 @@ const routeComponents = {
   GuideTopicPage,
   GuidesHub,
   LahoreTyreShopPage,
+  PrivacyPage,
   ServicesPage,
   SizeLandingPage,
   TyreSizesHub,
+  TyreRatesPage,
   VehicleLandingPage,
+  VehicleMakePage,
   VehiclesHub,
 };
 

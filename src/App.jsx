@@ -35,6 +35,11 @@ import { api, apiWithMeta } from "./api";
 import ServiceDetail from "./components/ServiceDetail.jsx";
 import FloatingWhatsApp from "./components/FloatingWhatsApp.jsx";
 import SeoHead from "./components/growth/SeoHead.jsx";
+import {
+  getLeadAttribution,
+  initLeadAttribution,
+  trackLeadEvent,
+} from "./lib/leadTracking.js";
 
 const DiscoveryHub = lazy(() => import("./components/growth/DiscoveryHub.jsx"));
 const BrandsHub = lazy(() =>
@@ -76,10 +81,21 @@ const LahoreTyreShopPage = lazy(() =>
 const FAQPage = lazy(() =>
   import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.FAQPage })),
 );
+const PrivacyPage = lazy(() =>
+  import("./components/growth/BusinessPages.jsx").then((module) => ({ default: module.PrivacyPage })),
+);
+const TyreRatesPage = lazy(() =>
+  import("./components/growth/MarketPages.jsx").then((module) => ({ default: module.TyreRatesPage })),
+);
+const VehicleMakePage = lazy(() =>
+  import("./components/growth/MarketPages.jsx").then((module) => ({ default: module.VehicleMakePage })),
+);
 
 const WHATSAPP = "923390045836";
 const SITE_URL = (
-  import.meta.env.VITE_SITE_URL || "https://wheelsandwheels.vercel.app"
+  import.meta.env.VITE_SITE_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "") ||
+  "https://wheelsandwheels.vercel.app"
 ).replace(/\/$/, "");
 const RFQ_PAGE_SIZE = 50;
 const ONLINE_CHECKOUT_ENABLED = false;
@@ -214,6 +230,20 @@ function ProductCard({ product, add }) {
         >
           Ask current rate <FaChevronRight />
         </Link>
+        <div className="product-contact-actions" role="group" aria-label={`Contact options for ${product.title}`}>
+          <a href="tel:+923214229594" data-lead-event="call_click" aria-label={`Call for the current rate of ${product.title}`}>
+            <FaPhoneAlt aria-hidden="true" /> Call
+          </a>
+          <a
+            href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi Wheels & Wheels, please share the current rate and availability for ${product.title} ${product.size || ""}.`)}`}
+            target="_blank"
+            rel="noreferrer"
+            data-lead-event="whatsapp_click"
+            aria-label={`Ask on WhatsApp for the current rate of ${product.title}`}
+          >
+            <FaWhatsapp aria-hidden="true" /> WhatsApp
+          </a>
+        </div>
         <button className="add-button" onClick={() => add(product)}>
           {product.onRequest ? "Ask about this option" : "Save selection"}{" "}<FaChevronRight />
         </button>
@@ -224,6 +254,8 @@ function ProductCard({ product, add }) {
 
 function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
   const [selected, setSelected] = useState(null);
+  const dialogRef = useRef(null);
+  const triggerRef = useRef(null);
   const isRim = type === "rims";
   const sizes = diameter
     ? [Number(diameter)]
@@ -233,10 +265,39 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
     : diameter && `${width || "Any width"}/${profile || "Any profile"} R${diameter}`;
   useEffect(() => {
     if (!selected) return undefined;
-    const close = (event) => event.key === "Escape" && setSelected(null);
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
+    document.body.classList.add("dialog-open");
+    window.requestAnimationFrame(() => {
+      getFocusableElements(dialogRef.current)[0]?.focus();
+    });
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSelected(null);
+        window.requestAnimationFrame(() => triggerRef.current?.focus());
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusableElements(dialogRef.current);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.classList.remove("dialog-open");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [selected]);
+  const closeSizeDialog = () => {
+    setSelected(null);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  };
   return (
     <section className="size-catalogue" aria-labelledby={`${type}-size-title`}>
       <div className="size-catalogue-head">
@@ -245,7 +306,7 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
       </div>
       <div className="diameter-grid">
         {sizes.map((diameter) => (
-          <button key={diameter} className="diameter-card" onClick={() => setSelected({ diameter, profiles: TYRE_PROFILE_GUIDE[diameter] })} aria-label={`Ask about ${diameter} inch ${isRim ? "rims" : "tyres"}`}>
+          <button key={diameter} className="diameter-card" onClick={(event) => { triggerRef.current = event.currentTarget; setSelected({ diameter, profiles: TYRE_PROFILE_GUIDE[diameter] }); }} aria-label={`Ask about ${diameter} inch ${isRim ? "rims" : "tyres"}`}>
             <span className="diameter-image"><img src={isRim ? "/Rim1.jpg" : "/tyre.jpg"} alt={`${diameter} inch ${isRim ? "alloy rim" : "tyre"}`} loading="lazy" decoding="async" /><i>ASK US</i></span>
             <span className="diameter-copy"><small>{isRim ? "ALLOY RIM" : "TYRE FITMENT"}</small><strong>{diameter}<sup>″</sup></strong>{!isRim && <em>{TYRE_PROFILE_GUIDE[diameter].length ? `Published profiles ${TYRE_PROFILE_GUIDE[diameter].join(" · ")}` : "Send your complete tyre size"}</em>}<b>Check current options <FaChevronRight /></b></span>
           </button>
@@ -253,9 +314,9 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
       </div>
       <p className="fitment-note"><FaCheck /> We can source additional width/profile combinations. Never select a tyre by rim diameter alone—our team verifies the complete size and vehicle specification.</p>
       {selected && (
-        <div className="size-contact-modal" role="dialog" aria-modal="true" aria-labelledby="size-contact-title" onClick={() => setSelected(null)}>
-          <div className="size-contact-card" onClick={(event) => event.stopPropagation()}>
-            <button className="size-modal-close" onClick={() => setSelected(null)} aria-label="Close contact options"><FaTimes /></button>
+        <div className="size-contact-modal" role="dialog" aria-modal="true" aria-labelledby="size-contact-title" onClick={closeSizeDialog}>
+          <div ref={dialogRef} className="size-contact-card" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="size-modal-close" onClick={closeSizeDialog} aria-label="Close contact options"><FaTimes /></button>
             <div className="size-modal-visual"><img src={isRim ? "/Rim1.jpg" : "/tyre.jpg"} alt="" /><span>{selected.diameter}″</span></div>
             <div className="eyebrow">AVAILABLE ON REQUEST</div>
             <h2 id="size-contact-title">Ask about {selected.diameter}-inch {isRim ? "rims" : "tyres"}.</h2>
@@ -274,13 +335,27 @@ function SizeCatalogue({ type, diameter = "", width = "", profile = "" }) {
   );
 }
 
+const getFocusableElements = (container) => (
+  container
+    ? [...container.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
+      )].filter((element) => !element.hidden && element.getClientRects().length)
+    : []
+);
+
 function Header({ count, openCart }) {
   const [open, setOpen] = useState(false);
-  const closeNavigation = () => {
+  const navRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const openRef = useRef(false);
+  const closeNavigation = (restoreFocus = false) => {
     setOpen(false);
     document.querySelectorAll(".nav-mega[open]").forEach((menu) => {
       menu.removeAttribute("open");
     });
+    if (restoreFocus === true) {
+      window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+    }
   };
   const keepOneMegaMenuOpen = (event) => {
     if (!event.currentTarget.open) return;
@@ -299,7 +374,13 @@ function Header({ count, openCart }) {
       if (!event.target.closest(".site-header")) closeAllMenus();
     };
     const handleEscape = (event) => {
-      if (event.key === "Escape") closeAllMenus();
+      if (event.key === "Escape") {
+        const shouldRestoreFocus = openRef.current;
+        closeAllMenus();
+        if (shouldRestoreFocus) {
+          window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+        }
+      }
     };
     document.addEventListener("click", handleOutsideClick);
     document.addEventListener("keydown", handleEscape);
@@ -308,6 +389,38 @@ function Header({ count, openCart }) {
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
+  useEffect(() => {
+    openRef.current = open;
+    document.body.classList.toggle("navigation-open", open);
+    if (open && window.matchMedia("(max-width: 1120px)").matches) {
+      window.requestAnimationFrame(() => {
+        getFocusableElements(navRef.current)[0]?.focus();
+      });
+    }
+    const containFocus = (event) => {
+      if (
+        event.key !== "Tab" ||
+        !open ||
+        !window.matchMedia("(max-width: 1120px)").matches
+      ) return;
+      const focusable = getFocusableElements(navRef.current);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", containFocus);
+    return () => {
+      document.body.classList.remove("navigation-open");
+      document.removeEventListener("keydown", containFocus);
+    };
+  }, [open]);
   return (
     <>
       <div className="announcement">
@@ -344,7 +457,7 @@ function Header({ count, openCart }) {
         <Link className="logo" to="/" aria-label="Wheels & Wheels home">
           <img src="/wheels-and-wheels-logo-600.png" alt="Wheels and Wheels" width="600" height="203" />
         </Link>
-        <nav className={open ? "nav-open" : ""} aria-label="Main navigation">
+        <nav id="main-navigation" ref={navRef} className={open ? "nav-open" : ""} aria-label="Main navigation">
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
             <summary>Tyres</summary>
             <div className="mega-panel">
@@ -368,15 +481,16 @@ function Header({ count, openCart }) {
                 <Link to="/tyre-sizes/205-55-r16" onClick={closeNavigation}>205/55 R16</Link>
                 <Link to="/tyre-sizes/185-65-r15" onClick={closeNavigation}>185/65 R15</Link>
                 <Link to="/guides/how-to-choose-the-right-tyre-size-pakistan" onClick={closeNavigation}>How to read tyre size</Link>
+                <Link to="/tyre-prices-pakistan" onClick={closeNavigation}>Tyre price &amp; rate guide</Link>
               </section>
             </div>
           </details>
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
             <summary>Find by car</summary>
             <div className="mega-panel vehicle-panel">
-              <section><small>SUZUKI</small><Link to="/vehicles/suzuki-alto" onClick={closeNavigation}>Alto</Link><Link to="/vehicles/suzuki-cultus" onClick={closeNavigation}>Cultus</Link><Link to="/vehicles/suzuki-wagon-r" onClick={closeNavigation}>Wagon R</Link></section>
-              <section><small>HONDA</small><Link to="/vehicles/honda-city" onClick={closeNavigation}>City</Link><Link to="/vehicles/honda-civic" onClick={closeNavigation}>Civic</Link><Link to="/vehicles/honda-br-v" onClick={closeNavigation}>BR-V</Link></section>
-              <section><small>TOYOTA</small><Link to="/vehicles/toyota-corolla" onClick={closeNavigation}>Corolla</Link><Link to="/vehicles/toyota-yaris" onClick={closeNavigation}>Yaris</Link><Link to="/vehicles/toyota-fortuner" onClick={closeNavigation}>Fortuner</Link></section>
+              <section><small>SUZUKI</small><Link to="/vehicles/suzuki" onClick={closeNavigation}>All Suzuki models</Link><Link to="/vehicles/suzuki-alto" onClick={closeNavigation}>Alto</Link><Link to="/vehicles/suzuki-cultus" onClick={closeNavigation}>Cultus</Link><Link to="/vehicles/suzuki-wagon-r" onClick={closeNavigation}>Wagon R</Link></section>
+              <section><small>HONDA</small><Link to="/vehicles/honda" onClick={closeNavigation}>All Honda models</Link><Link to="/vehicles/honda-city" onClick={closeNavigation}>City</Link><Link to="/vehicles/honda-civic" onClick={closeNavigation}>Civic</Link><Link to="/vehicles/honda-br-v" onClick={closeNavigation}>BR-V</Link></section>
+              <section><small>TOYOTA</small><Link to="/vehicles/toyota" onClick={closeNavigation}>All Toyota models</Link><Link to="/vehicles/toyota-corolla" onClick={closeNavigation}>Corolla</Link><Link to="/vehicles/toyota-yaris" onClick={closeNavigation}>Yaris</Link><Link to="/vehicles/toyota-fortuner" onClick={closeNavigation}>Fortuner</Link></section>
             </div>
           </details>
           <Link to="/rims" onClick={closeNavigation}>Rims</Link>
@@ -390,17 +504,19 @@ function Header({ count, openCart }) {
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
             <summary>More</summary>
             <div className="mega-panel compact-panel">
-              <section><small>HELP & COMPANY</small><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link></section>
+              <section><small>HELP & COMPANY</small><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link><Link to="/privacy" onClick={closeNavigation}>Privacy</Link></section>
             </div>
           </details>
           <Link className="nav-quote" to="/quote" onClick={closeNavigation}>Get current rate</Link>
         </nav>
         <div className="header-actions">
           <button
+            ref={menuButtonRef}
             className="icon-button mobile-menu"
             onClick={() => setOpen(!open)}
             aria-label={open ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={open}
+            aria-controls="main-navigation"
           >
             {open ? <FaTimes /> : <FaBars />}
           </button>
@@ -414,6 +530,14 @@ function Header({ count, openCart }) {
           </button>
         </div>
       </header>
+      {open && (
+        <button
+          className="mobile-nav-backdrop"
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => closeNavigation(true)}
+        />
+      )}
     </>
   );
 }
@@ -449,10 +573,15 @@ function Home({ add, products }) {
     profile: "55",
     rim: "16",
   });
-  const widthOptions = [...new Set(TYRE_SIZE_MANIFEST.map((item) => item.width))];
+  const widthOptions = [...new Set(
+    TYRE_SIZE_MANIFEST.filter((item) => item.width >= 155).map((item) => item.width),
+  )].sort((a, b) => a - b);
   const profileOptions = [...new Set(
     TYRE_SIZE_MANIFEST
-      .filter((item) => String(item.width) === fitment.width)
+      .filter(
+        (item) =>
+          item.profile >= 35 && String(item.width) === fitment.width,
+      )
       .map((item) => item.profile),
   )].sort((a, b) => a - b);
   const rimOptions = [...new Set(
@@ -464,7 +593,9 @@ function Home({ add, products }) {
       .map((item) => item.rim),
   )].sort((a, b) => a - b);
   const selectHomeWidth = (width) => {
-    const next = TYRE_SIZE_MANIFEST.find((item) => String(item.width) === width);
+    const next = TYRE_SIZE_MANIFEST.find(
+      (item) => item.profile >= 35 && String(item.width) === width,
+    );
     if (next) setFitment({ width, profile: String(next.profile), rim: String(next.rim) });
   };
   const selectHomeProfile = (profile) => {
@@ -475,6 +606,10 @@ function Home({ add, products }) {
   };
   const openSelectedSize = () => {
     const match = findTyreSize(fitment);
+    trackLeadEvent("size_search", {
+      contextType: "tyre_size",
+      contextValue: `${fitment.width}/${fitment.profile} R${fitment.rim}`,
+    });
     navigate(match?.path || "/tyre-sizes");
   };
   return (
@@ -756,8 +891,9 @@ function Home({ add, products }) {
 }
 
 function Shop({ add, products, loading }) {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const requestedSize = params.get("size") || "";
+  const requestedQuery = params.get("q") || "";
   const requestedParts = requestedSize.match(/(\d{3})\/(\d{2})\s*R(\d{2})/i);
   const requestedCategory = params.get("category");
   const initial =
@@ -773,12 +909,27 @@ function Shop({ add, products, loading }) {
   const [rim, setRim] = useState(requestedParts?.[3] || "");
   const [width, setWidth] = useState(requestedParts?.[1] || "");
   const [profile, setProfile] = useState(requestedParts?.[2] || "");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(requestedQuery);
   const [sort, setSort] = useState("featured");
-  const widthOptions = [...new Set(TYRE_SIZE_MANIFEST.map((item) => item.width))];
+  useEffect(() => {
+    setQuery(requestedQuery);
+  }, [requestedQuery]);
+  const updateQuery = (value) => {
+    setQuery(value);
+    const next = new URLSearchParams(params);
+    if (value.trim()) next.set("q", value);
+    else next.delete("q");
+    setParams(next, { replace: true });
+  };
+  const widthOptions = [...new Set(
+    TYRE_SIZE_MANIFEST.filter((item) => item.width >= 155).map((item) => item.width),
+  )].sort((a, b) => a - b);
   const profileOptions = [...new Set(
     TYRE_SIZE_MANIFEST
-      .filter((item) => !width || String(item.width) === width)
+      .filter(
+        (item) =>
+          item.profile >= 35 && (!width || String(item.width) === width),
+      )
       .map((item) => item.profile),
   )].sort((a, b) => a - b);
   const tyreRimOptions = [...new Set(
@@ -1061,8 +1212,10 @@ function Shop({ add, products, loading }) {
               <FaSearch />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => updateQuery(e.target.value)}
                 placeholder="Search brand, model or size"
+                name="q"
+                type="search"
               />
             </label>
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
@@ -1104,19 +1257,59 @@ function Shop({ add, products, loading }) {
 
 function Cart({ open, close, cart, change }) {
   const [showContact, setShowContact] = useState(false);
+  const dialog = useRef(null);
+  const closeButton = useRef(null);
+  const previousFocus = useRef(null);
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open) return undefined;
+    previousFocus.current = document.activeElement;
+    document.body.classList.add("dialog-open");
+    const focusFrame = window.requestAnimationFrame(() => {
+      closeButton.current?.focus();
+    });
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusableElements(dialog.current);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.classList.remove("dialog-open");
+      previousFocus.current?.focus?.();
+      previousFocus.current = null;
+    };
+  }, [open]);
   const selection = cart
     .map((item) => `${item.qty} x ${item.title} (${item.size})`)
     .join(", ");
+  if (!open) return null;
   return (
     <>
-      <div className={`cart-shade ${open ? "show" : ""}`} onClick={close} />
-      <aside className={`cart-drawer ${open ? "show" : ""}`}>
+      <button className="cart-shade show" type="button" aria-label="Close saved selection" onClick={close} />
+      <aside ref={dialog} className="cart-drawer show" role="dialog" aria-modal="true" aria-labelledby="quote-list-title">
         <div className="cart-head">
           <div>
             <small>YOUR SELECTION</small>
-            <h2>Quote list</h2>
+            <h2 id="quote-list-title">Compare &amp; request rates</h2>
           </div>
-          <button onClick={close}>
+          <button ref={closeButton} onClick={close} aria-label="Close saved selection">
             <FaTimes />
           </button>
         </div>
@@ -1140,11 +1333,11 @@ function Cart({ open, close, cart, change }) {
                     <h3>{i.title}</h3>
                     <p>{i.size}</p>
                     <div className="qty">
-                      <button onClick={() => change(i._id, -1)}>
+                      <button onClick={() => change(i._id, -1)} aria-label={`Decrease quantity for ${i.title}`}>
                         <FaMinus />
                       </button>
                       <span>{i.qty}</span>
-                      <button onClick={() => change(i._id, 1)}>
+                      <button onClick={() => change(i._id, 1)} aria-label={`Increase quantity for ${i.title}`}>
                         <FaPlus />
                       </button>
                     </div>
@@ -1198,6 +1391,10 @@ function ProductDetail({ products, add }) {
   const [remote, setRemote] = useState(null);
   const [zoom, setZoom] = useState(false);
   const [scale, setScale] = useState(1.5);
+  const zoomTrigger = useRef(null);
+  const zoomClose = useRef(null);
+  const zoomDialog = useRef(null);
+  const zoomStage = useRef(null);
   const localProduct = products.find((p) => p._id === id || p.slug === id);
   const product = localProduct || remote;
   const productSizeGuide = product?.category === "Tyres"
@@ -1214,10 +1411,46 @@ function ProductDetail({ products, add }) {
         .catch(() => setRemote(false));
   }, [id, products]);
   useEffect(() => {
-    const close = (e) => e.key === "Escape" && setZoom(false);
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, []);
+    if (!zoom) return undefined;
+    const trigger = zoomTrigger.current;
+    document.body.classList.add("dialog-open");
+    zoomClose.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setZoom(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusableElements(zoomDialog.current);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.classList.remove("dialog-open");
+      trigger?.focus();
+    };
+  }, [zoom]);
+  useEffect(() => {
+    if (!zoom || !zoomStage.current) return;
+    window.requestAnimationFrame(() => {
+      const stage = zoomStage.current;
+      stage?.scrollTo({
+        left: Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2),
+        top: Math.max(0, (stage.scrollHeight - stage.clientHeight) / 2),
+        behavior: "smooth",
+      });
+    });
+  }, [zoom, scale]);
   if (product === false)
     return (
       <>
@@ -1290,6 +1523,7 @@ function ProductDetail({ products, add }) {
       </div>
       <section className="detail-grid">
         <button
+          ref={zoomTrigger}
           className="detail-image"
           onClick={() => setZoom(true)}
           aria-label="Open product image zoom"
@@ -1327,6 +1561,20 @@ function ProductDetail({ products, add }) {
               <small>AVAILABILITY</small>
               <b>Confirm current availability</b>
             </span>
+          </div>
+          <div className="detail-direct-actions" role="group" aria-label="Contact Wheels & Wheels about this product">
+            <a href="tel:+923214229594" data-lead-event="call_click" aria-label={`Call for the current rate of ${product.title}`}>
+              <FaPhoneAlt aria-hidden="true" /> Call for current rate
+            </a>
+            <a
+              href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi Wheels & Wheels, please confirm the current rate, complete specification and availability for ${product.title} ${product.size || ""}.`)}`}
+              target="_blank"
+              rel="noreferrer"
+              data-lead-event="whatsapp_click"
+              aria-label={`Ask on WhatsApp for the current rate of ${product.title}`}
+            >
+              <FaWhatsapp aria-hidden="true" /> Ask on WhatsApp
+            </a>
           </div>
           <button
             className="detail-add"
@@ -1388,27 +1636,30 @@ function ProductDetail({ products, add }) {
       </section>
       {zoom && (
         <div
+          ref={zoomDialog}
           className="zoom-modal"
           role="dialog"
           aria-modal="true"
+          aria-label={`Zoomed image of ${product.title}`}
           onClick={() => setZoom(false)}
         >
-          <button className="zoom-close">
+          <button ref={zoomClose} className="zoom-close" onClick={() => setZoom(false)} aria-label="Close product image zoom">
             <FaTimes />
           </button>
-          <div className="zoom-stage" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={product.image}
-              alt={product.title}
-              style={{ transform: `scale(${scale})` }}
-            />
+          <div ref={zoomStage} className="zoom-stage" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="zoom-canvas"
+              style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}
+            >
+              <img src={product.image} alt={product.title} />
+            </div>
           </div>
           <div className="zoom-controls" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setScale((v) => Math.max(1, v - 0.25))}>
+            <button onClick={() => setScale((v) => Math.max(1, v - 0.25))} aria-label="Zoom out">
               <FaMinus />
             </button>
             <span>{Math.round(scale * 100)}%</span>
-            <button onClick={() => setScale((v) => Math.min(3, v + 0.25))}>
+            <button onClick={() => setScale((v) => Math.min(3, v + 0.25))} aria-label="Zoom in">
               <FaPlus />
             </button>
           </div>
@@ -1431,6 +1682,10 @@ function LeadInsights({ summary }) {
   ];
   const max = Math.max(1, ...stages.map((stage) => statusMap[stage.key] || 0));
   const total = summary.inquiries || 0;
+  const leadAnalytics = summary.leadAnalytics || {};
+  const eventMap = Object.fromEntries(
+    (leadAnalytics.totals || []).map((event) => [event._id, event.count]),
+  );
   const followUps = [
     {
       key: "new",
@@ -1544,6 +1799,39 @@ function LeadInsights({ summary }) {
             <strong>{statusMap[item.key] || 0}</strong>
           </div>
         ))}
+      </div>
+      <div className="lead-analytics-panel">
+        <div className="panel-title">
+          <div>
+            <small>LAST 30 DAYS · CONTACT CLICKS AND SAVED RFQS</small>
+            <h2>Lead source and contact activity</h2>
+          </div>
+          <b>{(eventMap.call_click || 0) + (eventMap.whatsapp_click || 0)} CTA clicks</b>
+        </div>
+        <div className="lead-metric-grid">
+          <article><small>WhatsApp clicks</small><strong>{eventMap.whatsapp_click || 0}</strong></article>
+          <article><small>Call clicks</small><strong>{eventMap.call_click || 0}</strong></article>
+          <article><small>Size searches</small><strong>{eventMap.size_search || 0}</strong></article>
+          <article><small>Saved RFQs</small><strong>{leadAnalytics.rfqSubmissions || 0}</strong></article>
+        </div>
+        <div className="lead-breakdown-grid">
+          <section>
+            <h3>RFQ landing pages</h3>
+            {(leadAnalytics.topLandingPages || []).length ? (
+              leadAnalytics.topLandingPages.map((item) => <p key={item._id}><span>{item._id}</span><b>{item.count}</b></p>)
+            ) : <div className="no-data">Landing-page attribution will appear after new RFQs.</div>}
+          </section>
+          <section>
+            <h3>Campaign sources</h3>
+            {(leadAnalytics.campaignSources || []).length ? (
+              leadAnalytics.campaignSources.map((item) => <p key={item._id}><span>{item._id}</span><b>{item.count}</b></p>)
+            ) : <div className="no-data">UTM-tagged campaign traffic will appear here.</div>}
+          </section>
+          <section>
+            <h3>RFQ device mix</h3>
+            {(leadAnalytics.devices || []).map((item) => <p key={item._id || "unknown"}><span>{item._id || "unknown"}</span><b>{item.count}</b></p>)}
+          </section>
+        </div>
       </div>
     </section>
   );
@@ -1684,7 +1972,7 @@ function Checkout({ cart, clear }) {
     name: "",
     phone: "",
     email: "",
-    city: "Lahore",
+    city: "",
     address: "",
     notes: "",
     paymentMethod: "cash-on-delivery",
@@ -1916,7 +2204,7 @@ function QuoteRequest() {
     name: "",
     phone: "",
     email: "",
-    city: "Lahore",
+    city: "",
     vehicle: "",
     tyreSize: quoteParams.get("tyreSize") || "",
     budget: "",
@@ -1927,9 +2215,20 @@ function QuoteRequest() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [showExtraDetails, setShowExtraDetails] = useState(false);
   const successPanel = useRef(null);
+  const quoteStarted = useRef(false);
   const rfqReference = result?.reference || result?.inquiryId || "";
   const customerEmailStatus = result?.customerEmailStatus;
+  const quoteContext = form.tyreSize || "general_request";
+  useEffect(() => {
+    if (quoteStarted.current) return;
+    quoteStarted.current = true;
+    trackLeadEvent("quote_start", {
+      contextType: form.tyreSize ? "tyre_size" : "rfq",
+      contextValue: quoteContext,
+    });
+  }, [form.tyreSize, quoteContext]);
   useEffect(() => {
     if (!result || !successPanel.current) return;
     successPanel.current.focus({ preventScroll: true });
@@ -1940,9 +2239,15 @@ function QuoteRequest() {
     setBusy(true);
     setError("");
     try {
-      setResult(
-        await api("/inquiries", { method: "POST", body: JSON.stringify(form) }),
-      );
+      const attribution = getLeadAttribution({
+        contextType: form.tyreSize ? "tyre_size" : "rfq",
+        contextValue: form.tyreSize || form.vehicle || "General request",
+      });
+      const response = await api("/inquiries", {
+        method: "POST",
+        body: JSON.stringify({ ...form, ...attribution }),
+      });
+      setResult(response);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -2066,11 +2371,21 @@ function QuoteRequest() {
         </label>
         <div className="eyebrow">YOUR REQUIREMENTS</div>
         <h2>Let’s find the right setup.</h2>
+        <button
+          className="quote-details-toggle"
+          type="button"
+          aria-expanded={showExtraDetails}
+          aria-controls="quote-optional-details"
+          onClick={() => setShowExtraDetails((value) => !value)}
+        >
+          {showExtraDetails ? "Hide optional details" : "Add email, city or budget (optional)"}
+        </button>
         <div className="form-grid">
           <label>
             Full name
             <input
               required
+              autoComplete="name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
@@ -2087,22 +2402,36 @@ function QuoteRequest() {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </label>
-          <label>
-            Email for your confirmation (optional)
-            <input
-              type="email"
-              autoComplete="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </label>
-          <label>
-            City
-            <input
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-            />
-          </label>
+          {showExtraDetails && (
+            <fieldset id="quote-optional-details" className="quote-optional-fields">
+              <legend>Optional contact and budget details</legend>
+              <label>
+                Email for your confirmation (optional)
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </label>
+              <label>
+                City
+                <input
+                  autoComplete="address-level2"
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                />
+              </label>
+              <label className="wide">
+                Approximate budget
+                <input
+                  value={form.budget}
+                  onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                  placeholder="e.g. Rs. 150,000–200,000"
+                />
+              </label>
+            </fieldset>
+          )}
           <label>
             Vehicle
             <input
@@ -2120,14 +2449,6 @@ function QuoteRequest() {
             />
           </label>
           <label className="wide">
-            Approximate budget
-            <input
-              value={form.budget}
-              onChange={(e) => setForm({ ...form, budget: e.target.value })}
-              placeholder="e.g. Rs. 150,000–200,000"
-            />
-          </label>
-          <label className="wide">
             What do you need?
             <textarea
               required
@@ -2142,7 +2463,7 @@ function QuoteRequest() {
           {busy ? "Sending request…" : "Send quote request"}
         </button>
         <p className="form-privacy">
-          Your details are used only to respond to this request.
+          Your details are used to respond and improve the enquiry journey. <Link to="/privacy">Read our privacy notice.</Link>
         </p>
       </form>
     </main>
@@ -2273,10 +2594,19 @@ function EmailDeliveryBadge({ label, status }) {
 function InquiryEmailRetry({ item, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const retryable = ["failed", "not_configured"];
+  const attemptedAt = item.notification?.attemptedAt
+    ? new Date(item.notification.attemptedAt).getTime()
+    : 0;
+  const pendingIsStale =
+    !Number.isFinite(attemptedAt) ||
+    attemptedAt === 0 ||
+    Date.now() - attemptedAt >= 2 * 60 * 1000;
+  const retryable = (status) =>
+    ["failed", "not_configured"].includes(status) ||
+    (status === "pending" && pendingIsStale);
   const needsRetry =
-    retryable.includes(item.notification?.adminEmailStatus) ||
-    retryable.includes(item.notification?.customerEmailStatus);
+    retryable(item.notification?.adminEmailStatus) ||
+    retryable(item.notification?.customerEmailStatus);
   if (!needsRetry) return null;
   const retry = async () => {
     setBusy(true);
@@ -2348,22 +2678,32 @@ function Admin() {
     setToken(localStorage.getItem("ww-admin-token"));
   }, []);
   const load = async () => {
-    try {
-      const [o, p, s, inquiriesResult] = await Promise.all([
+    const [ordersResult, productsResult, summaryResult, inquiriesResult] =
+      await Promise.allSettled([
         api("/orders"),
         api("/products"),
         api("/admin/summary"),
         apiWithMeta(`/inquiries?page=1&limit=${RFQ_PAGE_SIZE}`),
       ]);
-      setOrders(o);
-      setProducts(p);
-      setSummary(s);
-      setInquiries(mergeUniqueInquiries([], inquiriesResult.data));
-      setInquiryPage(inquiriesResult.meta.page);
-      setInquiriesHaveMore(inquiriesResult.meta.hasMore);
-    } catch (e) {
-      setError(e.message);
+    if (ordersResult.status === "fulfilled") setOrders(ordersResult.value);
+    if (productsResult.status === "fulfilled") setProducts(productsResult.value);
+    if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
+    if (inquiriesResult.status === "fulfilled") {
+      setInquiries(mergeUniqueInquiries([], inquiriesResult.value.data));
+      setInquiryPage(inquiriesResult.value.meta.page);
+      setInquiriesHaveMore(inquiriesResult.value.meta.hasMore);
     }
+    const failures = [
+      ordersResult,
+      productsResult,
+      summaryResult,
+      inquiriesResult,
+    ].filter((result) => result.status === "rejected");
+    setError(
+      failures.length
+        ? `Some dashboard data could not be refreshed: ${failures[0].reason?.message || "try again"}`
+        : "",
+    );
   };
   const loadMoreInquiries = async () => {
     if (loadingMoreInquiries || !inquiriesHaveMore) return;
@@ -2594,6 +2934,13 @@ function Admin() {
                   {item.city || "City not provided"}
                   <br />
                   {new Date(item.createdAt).toLocaleString()}
+                  {(item.landingPath || item.utmSource) && (
+                    <span className="inquiry-attribution">
+                      {item.landingPath ? `Landing: ${item.landingPath}` : ""}
+                      {item.landingPath && item.utmSource ? " · " : ""}
+                      {item.utmSource ? `Source: ${item.utmSource}` : ""}
+                    </span>
+                  )}
                 </small>
               </span>
               <span>
@@ -2887,6 +3234,10 @@ function Footer() {
             <Link to="/tyre-sizes">By tyre size</Link>
             <Link to="/vehicles">By vehicle</Link>
             <Link to="/brands">By brand</Link>
+            <Link to="/tyre-prices-pakistan">Tyre rate guide</Link>
+            <Link to="/vehicles/suzuki">Suzuki tyre guides</Link>
+            <Link to="/vehicles/toyota">Toyota tyre guides</Link>
+            <Link to="/vehicles/honda">Honda tyre guides</Link>
             <Link to="/tyres/japanese">Japanese tyres</Link>
             <Link to="/tyres/chinese">Chinese tyres</Link>
             <Link to="/tyres/premium">Premium tyres</Link>
@@ -2905,6 +3256,7 @@ function Footer() {
             <Link to="/lahore-tyre-shop">Lahore tyre shop</Link>
             <Link to="/contact">Contact & location</Link>
             <Link to="/faq">Questions & answers</Link>
+            <Link to="/privacy">Privacy &amp; data use</Link>
             <Link to="/quote">Ask current rate</Link>
           </p>
         </div>
@@ -2950,6 +3302,32 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
   const [products, setProducts] = useState(PRODUCTS);
   const [loading, setLoading] = useState(true);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
+  useEffect(() => {
+    if (!window.location.pathname.startsWith("/admin")) initLeadAttribution();
+    const recordContactClick = (event) => {
+      if (window.location.pathname.startsWith("/admin")) return;
+      const anchor = event.target instanceof Element
+        ? event.target.closest("a[href]")
+        : null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") || "";
+      const explicitType = anchor.dataset.leadEvent;
+      const eventType = explicitType || (
+        href.startsWith("tel:")
+          ? "call_click"
+          : /(?:wa\.me|whatsapp\.com)/i.test(href)
+            ? "whatsapp_click"
+            : ""
+      );
+      if (!eventType) return;
+      trackLeadEvent(eventType, {
+        contextType: "page_cta",
+        contextValue: window.location.pathname,
+      });
+    };
+    document.addEventListener("click", recordContactClick);
+    return () => document.removeEventListener("click", recordContactClick);
+  }, []);
   useEffect(() => {
     const needsCatalog =
       pathname === "/" ||
@@ -3026,26 +3404,35 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
   const RouteServicesPage = routeComponents.ServicesPage || ServicesPage;
   const RouteLahoreTyreShopPage = routeComponents.LahoreTyreShopPage || LahoreTyreShopPage;
   const RouteFAQPage = routeComponents.FAQPage || FAQPage;
+  const RoutePrivacyPage = routeComponents.PrivacyPage || PrivacyPage;
+  const RouteTyreRatesPage = routeComponents.TyreRatesPage || TyreRatesPage;
+  const RouteVehicleMakePage = routeComponents.VehicleMakePage || VehicleMakePage;
   return (
     <>
       <RouteEffects />
+      {!isAdmin && <a className="skip-link" href="#main-content">Skip to main content</a>}
       {!isAdmin && (
         <Header
           count={cart.reduce((s, i) => s + i.qty, 0)}
           openCart={() => setOpen(true)}
         />
       )}
-      <Suspense fallback={<main className="route-loading" role="status">Loading tyre guide…</main>}>
-      <Routes>
+      <div id="main-content" className="app-route-content" tabIndex="-1">
+        <Suspense fallback={<main className="route-loading" role="status">Loading tyre guide…</main>}>
+        <Routes>
         <Route path="/" element={<Home add={add} products={products} />} />
         <Route path="/tyres" element={<RouteDiscoveryHub />} />
         <Route path="/tyres/japanese" element={<RouteCommercialLandingPage pageKey="japanese-tyres" />} />
         <Route path="/tyres/chinese" element={<RouteCommercialLandingPage pageKey="chinese-tyres" />} />
         <Route path="/tyres/premium" element={<RouteCommercialLandingPage pageKey="premium-tyres" />} />
         <Route path="/rims" element={<RouteCommercialLandingPage pageKey="alloy-rims" />} />
+        <Route path="/tyre-prices-pakistan" element={<RouteTyreRatesPage />} />
         <Route path="/brands" element={<RouteBrandsHub />} />
         <Route path="/brands/:slug" element={<RouteBrandLandingPage />} />
         <Route path="/vehicles" element={<RouteVehiclesHub />} />
+        <Route path="/vehicles/suzuki" element={<RouteVehicleMakePage makeSlug="suzuki" />} />
+        <Route path="/vehicles/toyota" element={<RouteVehicleMakePage makeSlug="toyota" />} />
+        <Route path="/vehicles/honda" element={<RouteVehicleMakePage makeSlug="honda" />} />
         <Route path="/vehicles/:slug" element={<RouteVehicleLandingPage />} />
         <Route path="/tyre-sizes" element={<RouteTyreSizesHub />} />
         <Route path="/tyre-sizes/:slug" element={<RouteSizeLandingPage />} />
@@ -3057,6 +3444,7 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
         <Route path="/services" element={<RouteServicesPage />} />
         <Route path="/lahore-tyre-shop" element={<RouteLahoreTyreShopPage />} />
         <Route path="/faq" element={<RouteFAQPage />} />
+        <Route path="/privacy" element={<RoutePrivacyPage />} />
         <Route
           path="/shop"
           element={<Shop add={add} products={products} loading={loading} />}
@@ -3091,8 +3479,9 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
         <Route path="/services/:slug" element={<ServiceDetail />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
-      </Routes>
-      </Suspense>
+        </Routes>
+        </Suspense>
+      </div>
       {!isAdmin && (
         <>
           <Cart

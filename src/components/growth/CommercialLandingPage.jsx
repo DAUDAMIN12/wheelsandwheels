@@ -4,7 +4,11 @@ import { getCommercialPage } from "../../Data/commercialPages.js";
 import SeoHead from "./SeoHead.jsx";
 
 const WHATSAPP = "923390045836";
-const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://wheelsandwheels.vercel.app").replace(/\/$/, "");
+const siteUrl = () => (
+  import.meta.env.VITE_SITE_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "") ||
+  "https://wheelsandwheels.vercel.app"
+).replace(/\/$/, "");
 
 export default function CommercialLandingPage({ pageKey }) {
   const page = getCommercialPage(pageKey);
@@ -25,18 +29,20 @@ export default function CommercialLandingPage({ pageKey }) {
     );
   }
 
+  const baseUrl = siteUrl();
+
   const collectionSchema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "@id": `${SITE_URL}${page.route}#collection`,
+    "@id": `${baseUrl}${page.route}#collection`,
     name: page.title,
     description: page.metaDescription,
-    url: `${SITE_URL}${page.route}`,
+    url: `${baseUrl}${page.route}`,
     isPartOf: {
       "@type": "WebSite",
-      "@id": `${SITE_URL}/#website`,
+      "@id": `${baseUrl}/#website`,
       name: "Wheels & Wheels",
-      url: SITE_URL,
+      url: `${baseUrl}/`,
     },
   };
   const breadcrumbItems = page.key === "alloy-rims"

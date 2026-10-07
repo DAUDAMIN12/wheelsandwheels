@@ -13,6 +13,7 @@ import Product from "./models/Product.js";
 import Order from "./models/Order.js";
 import Admin from "./models/Admin.js";
 import Inquiry from "./models/Inquiry.js";
+import LeadEvent, { EVENT_TYPES as LEAD_EVENT_TYPES } from "./models/LeadEvent.js";
 import {
   emailDeliveryConfigured,
   sendNotification,
@@ -76,6 +77,13 @@ const loginLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many login attempts. Please wait 15 minutes." },
+});
+const eventLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 180,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many measurement events." },
 });
 app.use("/api/orders", sensitiveLimiter);
 app.use("/api/auth/login", loginLimiter);
@@ -176,6 +184,16 @@ const validateInquiry = (body) => {
     "message",
     "website",
     "_gotcha",
+    "landingPath",
+    "referrer",
+    "utmSource",
+    "utmMedium",
+    "utmCampaign",
+    "utmContent",
+    "utmTerm",
+    "deviceClass",
+    "contextType",
+    "contextValue",
   ]);
   if (Object.keys(body).some((key) => !allowed.has(key)))
     throw httpError(400, "The request contains unsupported fields");
@@ -194,14 +212,30 @@ const validateInquiry = (body) => {
     min: 3,
     max: 2000,
   });
+  const landingPath = cleanText(body, "landingPath", { max: 200 });
+  const referrer = cleanText(body, "referrer", { max: 240 });
+  const utmSource = cleanText(body, "utmSource", { max: 80 });
+  const utmMedium = cleanText(body, "utmMedium", { max: 80 });
+  const utmCampaign = cleanText(body, "utmCampaign", { max: 120 });
+  const utmContent = cleanText(body, "utmContent", { max: 120 });
+  const utmTerm = cleanText(body, "utmTerm", { max: 120 });
+  const deviceClass = cleanText(body, "deviceClass", { max: 12 }) || "unknown";
+  const contextType = cleanText(body, "contextType", { max: 40 });
+  const contextValue = cleanText(body, "contextValue", { max: 180 });
   const phoneDigits = phone.replace(/\D/g, "");
   if (!/^[+()\-\s\d]+$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15)
     throw httpError(400, "Enter a valid phone or WhatsApp number");
   if (email && !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email))
     throw httpError(400, "Enter a valid email address");
+  if (landingPath && (!landingPath.startsWith("/") || /[?#]/.test(landingPath)))
+    throw httpError(400, "Enter a valid landing path");
+  if (!["mobile", "tablet", "desktop", "unknown"].includes(deviceClass))
+    throw httpError(400, "Enter a valid device class");
   const dedupeKey = crypto
     .createHash("sha256")
-    .update(`${phoneDigits}|${tyreSize.toLowerCase()}|${message.toLowerCase()}`)
+    .update(
+      `${phoneDigits}|${email}|${name.toLowerCase()}|${tyreSize.toLowerCase()}|${message.toLowerCase()}`,
+    )
     .digest("hex");
   return {
     name,
@@ -212,7 +246,69 @@ const validateInquiry = (body) => {
     tyreSize,
     budget,
     message,
+    landingPath,
+    referrer,
+    utmSource,
+    utmMedium,
+    utmCampaign,
+    utmContent,
+    utmTerm,
+    deviceClass,
+    contextType,
+    contextValue,
     dedupeKey,
+  };
+};
+
+const validateLeadEvent = (body) => {
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw httpError(400, "Enter a valid event");
+  const allowed = new Set([
+    "eventType",
+    "currentPath",
+    "landingPath",
+    "referrer",
+    "utmSource",
+    "utmMedium",
+    "utmCampaign",
+    "utmContent",
+    "utmTerm",
+    "deviceClass",
+    "contextType",
+    "contextValue",
+  ]);
+  if (Object.keys(body).some((key) => !allowed.has(key)))
+    throw httpError(400, "The event contains unsupported fields");
+  const eventType = cleanText(body, "eventType", { required: true, min: 3, max: 40 });
+  if (!LEAD_EVENT_TYPES.includes(eventType))
+    throw httpError(400, "Unsupported event type");
+  const currentPath = cleanText(body, "currentPath", { max: 200 });
+  const landingPath = cleanText(body, "landingPath", { max: 200 });
+  for (const value of [currentPath, landingPath]) {
+    if (value && (!value.startsWith("/") || /[?#]/.test(value)))
+      throw httpError(400, "Enter a valid event path");
+    if (value?.startsWith("/admin"))
+      throw httpError(400, "Administrative paths are not measured");
+  }
+  const device = cleanText(body, "deviceClass", { max: 12 }) || "unknown";
+  if (!["mobile", "tablet", "desktop", "unknown"].includes(device))
+    throw httpError(400, "Enter a valid device class");
+  const contextType = cleanText(body, "contextType", { max: 40 });
+  if (!["", "page_cta", "tyre_size", "rfq"].includes(contextType))
+    throw httpError(400, "Enter a valid event context");
+  return {
+    eventType,
+    currentPath,
+    landingPath,
+    referrer: cleanText(body, "referrer", { max: 240 }),
+    utmSource: cleanText(body, "utmSource", { max: 80 }),
+    utmMedium: cleanText(body, "utmMedium", { max: 80 }),
+    utmCampaign: cleanText(body, "utmCampaign", { max: 120 }),
+    utmContent: cleanText(body, "utmContent", { max: 120 }),
+    utmTerm: cleanText(body, "utmTerm", { max: 120 }),
+    deviceClass: device,
+    contextType,
+    contextValue: cleanText(body, "contextValue", { max: 180 }),
   };
 };
 
@@ -265,6 +361,19 @@ const safeEmailFailureCode = (error) => {
     : "DELIVERY_FAILED";
 };
 
+const NOTIFICATION_RETRY_AFTER_MS = 2 * 60 * 1000;
+const notificationNeedsRetry = (status, attemptedAt) => {
+  if (!status || status === "failed" || status === "not_configured")
+    return true;
+  if (status !== "pending") return false;
+  const attemptedTime = attemptedAt ? new Date(attemptedAt).getTime() : 0;
+  return (
+    !Number.isFinite(attemptedTime) ||
+    attemptedTime === 0 ||
+    Date.now() - attemptedTime >= NOTIFICATION_RETRY_AFTER_MS
+  );
+};
+
 const deliverNotification = async (options, eventName) => {
   if (!emailDeliveryConfigured())
     return { sent: false, status: "not_configured" };
@@ -284,6 +393,15 @@ const sendInquiryReceiptNotifications = async (
   const reference = publicInquiryReference(inquiry);
   const previous = inquiry.notification || {};
   const attemptedAt = new Date();
+  const pendingUpdate = { "notification.attemptedAt": attemptedAt };
+  if (sendAdmin) pendingUpdate["notification.adminEmailStatus"] = "pending";
+  if (sendCustomer && inquiry.email)
+    pendingUpdate["notification.customerEmailStatus"] = "pending";
+  if (sendAdmin || (sendCustomer && inquiry.email)) {
+    await Inquiry.updateOne({ _id: inquiry._id }, { $set: pendingUpdate }).catch(
+      () => console.error("RFQ_EMAIL_ATTEMPT_UPDATE_FAILED"),
+    );
+  }
   const adminDeliveryPromise = sendAdmin
     ? deliverNotification(
         {
@@ -507,8 +625,27 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
         inquiryId: "000000000000000000000000",
         status: "new",
       });
-    const { name, phone, email, city, vehicle, tyreSize, budget, message, dedupeKey } =
-      details;
+    const {
+      name,
+      phone,
+      email,
+      city,
+      vehicle,
+      tyreSize,
+      budget,
+      message,
+      landingPath,
+      referrer,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm,
+      deviceClass,
+      contextType,
+      contextValue,
+      dedupeKey,
+    } = details;
     const duplicate = await Inquiry.findOne({
       dedupeKey,
       createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
@@ -520,14 +657,16 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
       .lean();
     if (duplicate) {
       const reference = publicInquiryReference(duplicate);
-      const retryable = (status) =>
-        !status || status === "failed" || status === "not_configured";
-      const shouldRetryAdmin = retryable(
+      const shouldRetryAdmin = notificationNeedsRetry(
         duplicate.notification?.adminEmailStatus,
+        duplicate.notification?.attemptedAt,
       );
       const shouldRetryCustomer =
         Boolean(duplicate.email) &&
-        retryable(duplicate.notification?.customerEmailStatus);
+        notificationNeedsRetry(
+          duplicate.notification?.customerEmailStatus,
+          duplicate.notification?.attemptedAt,
+        );
       const delivery =
         shouldRetryAdmin || shouldRetryCustomer
           ? await sendInquiryReceiptNotifications(duplicate, {
@@ -565,6 +704,16 @@ app.post("/api/inquiries", sensitiveLimiter, async (req, res, next) => {
       tyreSize,
       budget,
       message,
+      landingPath,
+      referrer,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm,
+      deviceClass,
+      contextType,
+      contextValue,
       dedupeKey,
       notification: {
         adminEmailStatus: "pending",
@@ -623,6 +772,17 @@ app.get("/api/inquiries/track/:id", sensitiveLimiter, async (req, res, next) => 
   }
 });
 
+app.post("/api/events", eventLimiter, async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    const event = validateLeadEvent(req.body);
+    await LeadEvent.create(event);
+    res.status(202).json({ accepted: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/auth/login", async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
@@ -643,9 +803,14 @@ app.post("/api/auth/login", async (req, res, next) => {
 app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
-    const since = new Date();
-    since.setDate(since.getDate() - 29);
-    since.setHours(0, 0, 0, 0);
+    const karachiNow = new Date(Date.now() + 5 * 60 * 60 * 1000);
+    const since = new Date(
+      Date.UTC(
+        karachiNow.getUTCFullYear(),
+        karachiNow.getUTCMonth(),
+        karachiNow.getUTCDate() - 29,
+      ) - 5 * 60 * 60 * 1000,
+    );
     const [
       products,
       orders,
@@ -692,7 +857,13 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
         },
         {
           $group: {
-            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            _id: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$createdAt",
+                timezone: "Asia/Karachi",
+              },
+            },
             sales: { $sum: "$total" },
             orders: { $sum: 1 },
           },
@@ -707,22 +878,128 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
         $or: [
           {
             "notification.adminEmailStatus": {
-              $in: ["failed", "not_configured"],
+              $in: ["failed", "not_configured", "pending"],
             },
           },
           {
             "notification.customerEmailStatus": {
-              $in: ["failed", "not_configured"],
+              $in: ["failed", "not_configured", "pending"],
             },
           },
           {
             "notification.quoteEmailStatus": {
-              $in: ["failed", "not_configured"],
+              $in: ["failed", "not_configured", "pending"],
             },
           },
         ],
       }),
     ]);
+
+    let leadAnalytics = {
+      totals: [],
+      rfqSubmissions: 0,
+      topLandingPages: [],
+      campaignSources: [],
+      devices: [],
+      daily: [],
+      rfqDaily: [],
+    };
+    try {
+      const [eventRows, inquiryRows] = await Promise.all([
+        LeadEvent.aggregate([
+          { $match: { createdAt: { $gte: since } } },
+          {
+            $facet: {
+              totals: [
+                { $group: { _id: "$eventType", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+              ],
+              daily: [
+                {
+                  $group: {
+                    _id: {
+                      $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt",
+                        timezone: "Asia/Karachi",
+                      },
+                    },
+                    events: { $sum: 1 },
+                    calls: {
+                      $sum: {
+                        $cond: [{ $eq: ["$eventType", "call_click"] }, 1, 0],
+                      },
+                    },
+                    whatsapp: {
+                      $sum: {
+                        $cond: [
+                          { $eq: ["$eventType", "whatsapp_click"] },
+                          1,
+                          0,
+                        ],
+                      },
+                    },
+                  },
+                },
+                { $sort: { _id: 1 } },
+              ],
+            },
+          },
+        ]).option({ maxTimeMS: 5000 }),
+        Inquiry.aggregate([
+          { $match: { createdAt: { $gte: since } } },
+          {
+            $facet: {
+              total: [{ $count: "count" }],
+              topLandingPages: [
+                { $match: { landingPath: { $type: "string", $ne: "" } } },
+                { $group: { _id: "$landingPath", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 8 },
+              ],
+              campaignSources: [
+                { $match: { utmSource: { $type: "string", $ne: "" } } },
+                { $group: { _id: "$utmSource", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 8 },
+              ],
+              devices: [
+                { $group: { _id: "$deviceClass", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+              ],
+              daily: [
+                {
+                  $group: {
+                    _id: {
+                      $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt",
+                        timezone: "Asia/Karachi",
+                      },
+                    },
+                    rfqs: { $sum: 1 },
+                  },
+                },
+                { $sort: { _id: 1 } },
+              ],
+            },
+          },
+        ]).option({ maxTimeMS: 5000 }),
+      ]);
+      const eventAnalytics = eventRows[0] || {};
+      const inquiryAnalytics = inquiryRows[0] || {};
+      leadAnalytics = {
+        totals: eventAnalytics.totals || [],
+        rfqSubmissions: inquiryAnalytics.total?.[0]?.count || 0,
+        topLandingPages: inquiryAnalytics.topLandingPages || [],
+        campaignSources: inquiryAnalytics.campaignSources || [],
+        devices: inquiryAnalytics.devices || [],
+        daily: eventAnalytics.daily || [],
+        rfqDaily: inquiryAnalytics.daily || [],
+      };
+    } catch (analyticsError) {
+      console.error("LEAD_ANALYTICS_UNAVAILABLE", analyticsError?.message || analyticsError);
+    }
     res.json({
       products,
       orders,
@@ -738,6 +1015,7 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
       inquiryStatuses,
       emailConfigured: emailDeliveryConfigured(),
       emailDeliveryIssues,
+      leadAnalytics,
     });
   } catch (e) {
     next(e);
@@ -852,10 +1130,33 @@ app.patch("/api/inquiries/:id", requireAdmin, async (req, res, next) => {
     if (!inquiry) return res.status(404).json({ message: "Inquiry not found" });
     let receiptDelivery;
     if (retryNotifications) {
-      receiptDelivery = await sendInquiryReceiptNotifications(inquiry, {
-        sendAdmin: true,
-        sendCustomer: Boolean(inquiry.email),
-      });
+      const shouldRetryAdmin = notificationNeedsRetry(
+        inquiry.notification?.adminEmailStatus,
+        inquiry.notification?.attemptedAt,
+      );
+      const shouldRetryCustomer =
+        Boolean(inquiry.email) &&
+        notificationNeedsRetry(
+          inquiry.notification?.customerEmailStatus,
+          inquiry.notification?.attemptedAt,
+        );
+      receiptDelivery = shouldRetryAdmin || shouldRetryCustomer
+        ? await sendInquiryReceiptNotifications(inquiry, {
+            sendAdmin: shouldRetryAdmin,
+            sendCustomer: shouldRetryCustomer,
+          })
+        : {
+            adminEmailSent:
+              inquiry.notification?.adminEmailStatus === "sent",
+            adminEmailStatus:
+              inquiry.notification?.adminEmailStatus || "pending",
+            customerEmailExpected: Boolean(inquiry.email),
+            customerEmailSent:
+              inquiry.notification?.customerEmailStatus === "sent",
+            customerEmailStatus:
+              inquiry.notification?.customerEmailStatus ||
+              (inquiry.email ? "pending" : "not_requested"),
+          };
     }
     let emailSent = false;
     let emailDeliveryStatus = isResponse ? "not_requested" : undefined;
@@ -1168,7 +1469,10 @@ export function connectDatabase() {
 
   mongoState.promise = mongoose
     .connect(uri, {
-      maxPoolSize: boundedNumber(process.env.MONGO_POOL_SIZE, 10, 2, 50),
+      // Keep each serverless instance conservative so horizontal scaling does
+      // not exhaust the Atlas connection limit. This remains configurable for
+      // a larger production cluster.
+      maxPoolSize: boundedNumber(process.env.MONGO_POOL_SIZE, 5, 2, 20),
       minPoolSize: 0,
       maxConnecting: boundedNumber(process.env.MONGO_MAX_CONNECTING, 2, 1, 10),
       maxIdleTimeMS: boundedNumber(
@@ -1185,6 +1489,7 @@ export function connectDatabase() {
       ),
       connectTimeoutMS: 10_000,
       serverSelectionTimeoutMS: 5_000,
+      socketTimeoutMS: 15_000,
     })
     .then(() => mongoose.connection)
     .catch((error) => {

@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+export const API_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const token = localStorage.getItem("ww-admin-token");
