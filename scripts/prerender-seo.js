@@ -243,6 +243,8 @@ const sizePages = SEO_SIZES.map((item) => ({
     { title: "Fitment reminder", text: item.verificationNote },
   ],
   faqs: item.faqs || [],
+  noIndex: Boolean(item.noIndex),
+  excludeFromSitemap: Boolean(item.noIndex),
   updatedAt: SEO_CONTENT_UPDATED,
 }));
 
@@ -346,7 +348,9 @@ const commercialPages = COMMERCIAL_PAGES.map((item) => ({
 const servicePages = SERVICES.map((item) => ({
   route: `/services/${item.slug}`,
   title: `${item.title} in Lahore`,
-  description: `${item.summary} Ask Wheels & Wheels Lahore for the current service rate and available time.`,
+  description:
+    item.metaDescription ||
+    `${item.summary} Ask Wheels & Wheels Lahore for the current service rate and available time.`,
   h1: item.title,
   intro: item.tagline,
   sections: [

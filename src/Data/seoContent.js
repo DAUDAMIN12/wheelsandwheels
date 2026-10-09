@@ -792,6 +792,8 @@ export const SEO_SIZES = baseSizePages.map((item) => {
     catalogueReferencesBySize.get(item.slug) || [],
     (entry) => entry.slug,
   );
+  const hasReferenceEvidence =
+    vehicleReferences.length > 0 || catalogueReferences.length > 0;
   const sidewallHeight = (item.width * item.aspectRatio) / 100;
   const overallDiameter = item.rim * 25.4 + sidewallHeight * 2;
   const diameterInches = overallDiameter / 25.4;
@@ -849,6 +851,7 @@ export const SEO_SIZES = baseSizePages.map((item) => {
     heroTitle: `${item.size} tyres in Lahore`,
     vehicleReferences,
     catalogueReferences,
+    noIndex: !hasReferenceEvidence,
     commonApplications: applications,
     shoppingChecklist: [],
     measurements: {

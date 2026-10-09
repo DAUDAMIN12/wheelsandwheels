@@ -82,7 +82,8 @@ No default password is published in this repository. The values in `.env` or the
    ```
 
 7. Deploy or redeploy. Vercel runs `npm run build`, which creates the static SEO routes, sitemap, robots file, 404 page, and frontend assets.
-8. After attaching the final domain, update `VITE_SITE_URL` and `CLIENT_URL`, redeploy, then submit `/sitemap.xml` in Google Search Console.
+8. In the Vercel project, enable **Analytics** and **Speed Insights**. Their official React components are already installed in the app; the dashboards begin collecting production visits and real-user Core Web Vitals after the deployment receives traffic.
+9. After attaching the final domain, update `VITE_SITE_URL` and `CLIENT_URL`, redeploy, then submit `/sitemap.xml` in Google Search Console.
 
 For Gmail notifications, enable two-step verification and use a Gmail App Password as `SMTP_PASS`; do not use the normal Gmail password. `SMTP_USER`, `SMTP_PASS`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, and `NOTIFICATION_EMAIL` must all be available to the Vercel Production environment. Changing an environment variable does not update an existing deployment, so redeploy afterward.
 

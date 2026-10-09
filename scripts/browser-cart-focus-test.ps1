@@ -180,6 +180,93 @@ JSON.stringify({
   if ($closedObject.dialogOpen -or -not $closedObject.bodyUnlocked -or -not $closedObject.focusRestored) {
     throw "Cart drawer close/focus-restoration assertions failed"
   }
+
+  Invoke-Cdp "Page.navigate" @{ url = "$BaseUrl/shop?size=195%2F65%20R15" } | Out-Null
+  $shopReady = $false
+  for ($attempt = 0; $attempt -lt 40; $attempt += 1) {
+    Start-Sleep -Milliseconds 200
+    $shopReady = Invoke-JavaScript "document.readyState === 'complete' && Boolean(document.querySelector('.size-finder'))"
+    if ($shopReady) { break }
+  }
+  if (-not $shopReady) { throw "Shop page did not become interactive" }
+
+  $initialFitmentJson = Invoke-JavaScript @'
+JSON.stringify({
+  width: document.querySelector('select[aria-label="Tyre width"]')?.value,
+  profile: document.querySelector('select[aria-label="Tyre profile"]')?.value,
+  rim: document.querySelector('select[aria-label="Tyre rim diameter"]')?.value,
+  representativeLabels: document.querySelectorAll('.representative-image-note').length
+})
+'@
+  $initialFitment = $initialFitmentJson | ConvertFrom-Json
+  if (
+    $initialFitment.width -ne "195" -or
+    $initialFitment.profile -ne "65" -or
+    $initialFitment.rim -ne "15" -or
+    $initialFitment.representativeLabels -lt 1
+  ) {
+    throw "Exact-size URL did not hydrate the accessible shop filters"
+  }
+
+  Invoke-JavaScript @'
+Array.from(document.querySelectorAll('.shop-layout aside > button')).find((button) => button.textContent.includes('Rims'))?.click(); true
+'@ | Out-Null
+  Start-Sleep -Milliseconds 500
+  $rimFilterJson = Invoke-JavaScript @'
+JSON.stringify({
+  url: location.pathname + location.search,
+  tyreWidthVisible: Boolean(document.querySelector('select[aria-label="Tyre width"]')),
+  tyreProfileVisible: Boolean(document.querySelector('select[aria-label="Tyre profile"]')),
+  rimSelectorVisible: Boolean(document.querySelector('select[aria-label="Rim diameter"]')),
+  cards: document.querySelectorAll('.product-card').length,
+  scrollWidth: document.documentElement.scrollWidth,
+  width: window.innerWidth
+})
+'@
+  $rimFilter = $rimFilterJson | ConvertFrom-Json
+  $rimFilter | ConvertTo-Json -Compress
+  if (
+    $rimFilter.url -notmatch 'category=Rims' -or
+    $rimFilter.url -match 'size=' -or
+    $rimFilter.tyreWidthVisible -or
+    $rimFilter.tyreProfileVisible -or
+    -not $rimFilter.rimSelectorVisible -or
+    $rimFilter.cards -lt 1 -or
+    $rimFilter.scrollWidth -ne $rimFilter.width
+  ) {
+    throw "Rim category retained stale tyre filters or overflowed on mobile"
+  }
+
+  Invoke-JavaScript @'
+document.querySelector('a[href="/guides"]')?.click(); true
+'@ | Out-Null
+  Start-Sleep -Milliseconds 700
+  $routeFocusJson = Invoke-JavaScript @'
+JSON.stringify({
+  path: location.pathname,
+  activeId: document.activeElement?.id || null,
+  title: document.title
+})
+'@
+  $routeFocus = $routeFocusJson | ConvertFrom-Json
+  $routeFocus | ConvertTo-Json -Compress
+  if ($routeFocus.path -ne "/guides" -or $routeFocus.activeId -ne "main-content" -or -not $routeFocus.title) {
+    throw "SPA route navigation did not move focus to the new page content"
+  }
+
+  Invoke-JavaScript "localStorage.setItem('ww-admin-token', 'expired-test-token'); true" | Out-Null
+  Invoke-Cdp "Page.navigate" @{ url = "$BaseUrl/admin" } | Out-Null
+  $sessionHandled = $false
+  for ($attempt = 0; $attempt -lt 40; $attempt += 1) {
+    Start-Sleep -Milliseconds 200
+    $sessionHandled = Invoke-JavaScript @'
+Boolean(document.querySelector('.admin-login form') && document.querySelector('.form-error[role="alert"]')?.textContent.includes('session expired'))
+'@
+    if ($sessionHandled) { break }
+  }
+  if (-not $sessionHandled) {
+    throw "Expired admin session did not return to the accessible sign-in screen"
+  }
 } finally {
   if ($socket) { $socket.Dispose() }
   if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }

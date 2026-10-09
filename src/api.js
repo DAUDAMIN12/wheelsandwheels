@@ -19,7 +19,16 @@ async function request(path, options = {}) {
   }
   const body =
     response.status === 204 ? null : await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body?.message || "Request failed");
+  if (!response.ok) {
+    const error = new Error(body?.message || "Request failed");
+    error.status = response.status;
+    error.body = body;
+    if (response.status === 401 && token) {
+      localStorage.removeItem("ww-admin-token");
+      window.dispatchEvent(new Event("ww-admin-session-expired"));
+    }
+    throw error;
+  }
   return { body, response };
 }
 

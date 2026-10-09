@@ -563,7 +563,7 @@ export function PrivacyPage() {
             explains what is stored when you submit an RFQ and what limited
             measurement is used to improve the enquiry journey.
           </p>
-          <p className="growth-assurance">Last updated 5 October 2026</p>
+          <p className="growth-assurance">Last updated 9 October 2026</p>
         </div>
       </header>
       <section className="growth-article-body section policy-content" aria-label="Privacy details">
@@ -585,7 +585,9 @@ export function PrivacyPage() {
             events. It can also record the landing page, current page, broad
             device class, referral hostname and path, and campaign tags such as
             UTM source. These event records do not contain your call or WhatsApp
-            conversation.
+            conversation. Vercel Analytics and Speed Insights may also process
+            limited visit, browser and performance information so we can measure
+            page use and Core Web Vitals.
           </p>
         </article>
         <article className="growth-copy-section">

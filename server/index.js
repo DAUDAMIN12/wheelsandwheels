@@ -786,10 +786,18 @@ app.post("/api/events", eventLimiter, async (req, res, next) => {
 app.post("/api/auth/login", async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
-    const admin = await Admin.findOne({ email: req.body.email?.toLowerCase() });
+    const email =
+      typeof req.body?.email === "string"
+        ? req.body.email.trim().toLowerCase()
+        : "";
+    const password =
+      typeof req.body?.password === "string" ? req.body.password : "";
+    if (!email || email.length > 254 || !password || password.length > 512)
+      return res.status(400).json({ message: "Enter a valid email and password" });
+    const admin = await Admin.findOne({ email }).maxTimeMS(3000);
     if (
       !admin ||
-      !verifyPassword(req.body.password || "", admin.salt, admin.passwordHash)
+      !(await verifyPassword(password, admin.salt, admin.passwordHash))
     )
       return res.status(401).json({ message: "Invalid email or password" });
     res.json({
@@ -826,17 +834,20 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
       inquiryStatuses,
       emailDeliveryIssues,
     ] = await Promise.all([
-      Product.countDocuments(),
-      Order.countDocuments(),
-      Order.countDocuments({ status: "pending" }),
+      Product.countDocuments().maxTimeMS(5000),
+      Order.countDocuments().maxTimeMS(5000),
+      Order.countDocuments({ status: "pending" }).maxTimeMS(5000),
       Order.aggregate([
         { $match: { status: { $ne: "cancelled" } } },
         { $group: { _id: null, total: { $sum: "$total" } } },
-      ]),
+      ]).option({ maxTimeMS: 5000 }),
       Product.find({ stock: { $gt: 0, $lte: 5 } })
         .select("title stock image")
-        .sort({ stock: 1 }),
-      Product.find({ stock: 0 }).select("title stock image"),
+        .sort({ stock: 1 })
+        .maxTimeMS(5000),
+      Product.find({ stock: 0 })
+        .select("title stock image")
+        .maxTimeMS(5000),
       Order.aggregate([
         { $match: { status: { $ne: "cancelled" } } },
         { $unwind: "$items" },
@@ -850,7 +861,7 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
         },
         { $sort: { units: -1 } },
         { $limit: 5 },
-      ]),
+      ]).option({ maxTimeMS: 5000 }),
       Order.aggregate([
         {
           $match: { createdAt: { $gte: since }, status: { $ne: "cancelled" } },
@@ -869,11 +880,15 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
           },
         },
         { $sort: { _id: 1 } },
-      ]),
-      Order.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-      Inquiry.countDocuments(),
-      Inquiry.countDocuments({ status: "new" }),
-      Inquiry.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+      ]).option({ maxTimeMS: 5000 }),
+      Order.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]).option({ maxTimeMS: 5000 }),
+      Inquiry.countDocuments().maxTimeMS(5000),
+      Inquiry.countDocuments({ status: "new" }).maxTimeMS(5000),
+      Inquiry.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]).option({ maxTimeMS: 5000 }),
       Inquiry.countDocuments({
         $or: [
           {
@@ -892,7 +907,7 @@ app.get("/api/admin/summary", requireAdmin, async (_req, res, next) => {
             },
           },
         ],
-      }),
+      }).maxTimeMS(5000),
     ]);
 
     let leadAnalytics = {
@@ -1093,40 +1108,136 @@ app.get("/api/inquiries", requireAdmin, async (req, res, next) => {
 });
 app.patch("/api/inquiries/:id", requireAdmin, async (req, res, next) => {
   try {
+    const requestBody =
+      req.body && typeof req.body === "object" && !Array.isArray(req.body)
+        ? req.body
+        : {};
     const allowed = ["new", "contacted", "quoted", "won", "closed"];
-    if (req.body.status && !allowed.includes(req.body.status))
+    if (requestBody.status && !allowed.includes(requestBody.status))
       return res.status(400).json({ message: "Invalid inquiry status" });
-    const isResponse = req.body.sendReply === true;
-    const retryNotifications = req.body.retryNotifications === true;
+    const isResponse = requestBody.sendReply === true;
+    const retryNotifications = requestBody.retryNotifications === true;
+    const retryQuoteEmail = requestBody.retryQuoteEmail === true;
+    if (
+      retryQuoteEmail &&
+      Object.keys(requestBody).some((key) => key !== "retryQuoteEmail")
+    )
+      return res.status(400).json({
+        message: "A quote-email retry cannot include quotation changes",
+      });
     const quotedAmount =
-      req.body.quotedAmount === "" || req.body.quotedAmount == null
+      requestBody.quotedAmount === "" || requestBody.quotedAmount == null
         ? undefined
-        : Number(req.body.quotedAmount);
-    if (req.body.quotedAmount !== undefined && req.body.quotedAmount !== "" && (!Number.isFinite(quotedAmount) || quotedAmount < 0))
-      return res.status(400).json({ message: "Quoted amount must be a valid positive number" });
+        : Number(requestBody.quotedAmount);
+    if (
+      requestBody.quotedAmount !== undefined &&
+      requestBody.quotedAmount !== "" &&
+      (!Number.isFinite(quotedAmount) || quotedAmount < 0)
+    )
+      return res
+        .status(400)
+        .json({ message: "Quoted amount must be a valid positive number" });
     if (
       isResponse &&
-      (!String(req.body.reply || "").trim() ||
-        (quotedAmount === undefined && !String(req.body.quotedItems || "").trim()))
+      (!String(requestBody.reply || "").trim() ||
+        (quotedAmount === undefined && !String(requestBody.quotedItems || "").trim()))
     )
       return res.status(400).json({
         message:
           "Add a customer reply and either quoted items or a quoted amount before sending",
       });
-    const inquiry = await Inquiry.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...(req.body.status ? { status: req.body.status } : isResponse ? { status: "quoted" } : {}),
-        ...(typeof req.body.notes === "string"
-          ? { notes: req.body.notes }
-          : {}),
-        ...(req.body.quotedAmount !== undefined ? { quotedAmount } : {}),
-        ...(typeof req.body.quotedItems === "string" ? { quotedItems: req.body.quotedItems } : {}),
-        ...(typeof req.body.reply === "string" ? { reply: req.body.reply } : {}),
-        ...(isResponse ? { respondedAt: new Date() } : {}),
-      },
-      { new: true, runValidators: true },
-    );
+    let inquiry;
+    let quoteEmailAttemptedAt;
+    if (retryQuoteEmail) {
+      const savedInquiry = await Inquiry.findById(req.params.id);
+      if (!savedInquiry)
+        return res.status(404).json({ message: "Inquiry not found" });
+      if (!savedInquiry.email)
+        return res.status(409).json({
+          message: "This RFQ has no customer email address",
+        });
+      if (
+        !String(savedInquiry.reply || "").trim() ||
+        (savedInquiry.quotedAmount == null &&
+          !String(savedInquiry.quotedItems || "").trim())
+      )
+        return res.status(409).json({
+          message: "Save a complete quotation before retrying its email",
+        });
+
+      quoteEmailAttemptedAt = new Date();
+      const staleBefore = new Date(
+        quoteEmailAttemptedAt.getTime() - NOTIFICATION_RETRY_AFTER_MS,
+      );
+      inquiry = await Inquiry.findOneAndUpdate(
+        {
+          _id: savedInquiry._id,
+          $or: [
+            {
+              "notification.quoteEmailStatus": { $exists: false },
+              "notification.quoteEmailSentAt": { $exists: false },
+            },
+            {
+              "notification.quoteEmailStatus": null,
+              "notification.quoteEmailSentAt": { $exists: false },
+            },
+            {
+              "notification.quoteEmailStatus": {
+                $in: ["failed", "not_configured"],
+              },
+            },
+            {
+              "notification.quoteEmailStatus": "pending",
+              $or: [
+                { "notification.quoteEmailAttemptedAt": { $exists: false } },
+                { "notification.quoteEmailAttemptedAt": null },
+                {
+                  "notification.quoteEmailAttemptedAt": {
+                    $lte: staleBefore,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          $set: {
+            "notification.quoteEmailStatus": "pending",
+            "notification.quoteEmailAttemptedAt": quoteEmailAttemptedAt,
+          },
+          $unset: { "notification.quoteEmailSentAt": 1 },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!inquiry)
+        return res.status(409).json({
+          message:
+            "This quote email is not retryable or another delivery attempt is already running",
+        });
+    } else {
+      inquiry = await Inquiry.findByIdAndUpdate(
+        req.params.id,
+        {
+          ...(requestBody.status
+            ? { status: requestBody.status }
+            : isResponse
+              ? { status: "quoted" }
+              : {}),
+          ...(typeof requestBody.notes === "string"
+            ? { notes: requestBody.notes }
+            : {}),
+          ...(requestBody.quotedAmount !== undefined ? { quotedAmount } : {}),
+          ...(typeof requestBody.quotedItems === "string"
+            ? { quotedItems: requestBody.quotedItems }
+            : {}),
+          ...(typeof requestBody.reply === "string"
+            ? { reply: requestBody.reply }
+            : {}),
+          ...(isResponse ? { respondedAt: new Date() } : {}),
+        },
+        { new: true, runValidators: true },
+      );
+    }
     if (!inquiry) return res.status(404).json({ message: "Inquiry not found" });
     let receiptDelivery;
     if (retryNotifications) {
@@ -1159,8 +1270,27 @@ app.patch("/api/inquiries/:id", requireAdmin, async (req, res, next) => {
           };
     }
     let emailSent = false;
-    let emailDeliveryStatus = isResponse ? "not_requested" : undefined;
-    if (isResponse && inquiry.email) {
+    let emailDeliveryStatus =
+      isResponse || retryQuoteEmail ? "not_requested" : undefined;
+    if ((isResponse || retryQuoteEmail) && inquiry.email) {
+      if (!retryQuoteEmail) {
+        quoteEmailAttemptedAt = new Date();
+        const pendingResult = await Inquiry.updateOne(
+          { _id: inquiry._id },
+          {
+            $set: {
+              "notification.quoteEmailStatus": "pending",
+              "notification.quoteEmailAttemptedAt": quoteEmailAttemptedAt,
+            },
+            $unset: { "notification.quoteEmailSentAt": 1 },
+          },
+        );
+        if (pendingResult.matchedCount !== 1)
+          throw httpError(
+            409,
+            "The quote email could not be prepared for delivery",
+          );
+      }
       const reference = publicInquiryReference(inquiry);
       const delivery = await deliverNotification(
         {
@@ -1189,17 +1319,23 @@ app.patch("/api/inquiries/:id", requireAdmin, async (req, res, next) => {
       emailSent = delivery.sent;
       emailDeliveryStatus = delivery.status;
     }
-    if (isResponse) {
-      const attemptedAt = new Date();
+    if (isResponse || retryQuoteEmail) {
+      const attemptedAt = quoteEmailAttemptedAt || new Date();
       const emailUpdate = {
         "notification.quoteEmailStatus": emailDeliveryStatus,
         "notification.quoteEmailAttemptedAt": attemptedAt,
       };
       if (emailSent)
         emailUpdate["notification.quoteEmailSentAt"] = attemptedAt;
-      await Inquiry.updateOne({ _id: inquiry._id }, { $set: emailUpdate }).catch(
-        () => console.error("QUOTE_EMAIL_STATUS_UPDATE_FAILED"),
-      );
+      await Inquiry.updateOne(
+        { _id: inquiry._id },
+        {
+          $set: emailUpdate,
+          ...(!emailSent
+            ? { $unset: { "notification.quoteEmailSentAt": 1 } }
+            : {}),
+        },
+      ).catch(() => console.error("QUOTE_EMAIL_STATUS_UPDATE_FAILED"));
     }
     res.json({
       inquiry,

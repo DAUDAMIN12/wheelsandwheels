@@ -2,7 +2,15 @@ import mongoose from "mongoose";
 const schema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      maxlength: 160,
+      match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    },
     brand: { type: String, required: true },
     category: {
       type: String,

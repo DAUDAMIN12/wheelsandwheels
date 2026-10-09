@@ -22,10 +22,16 @@ export function hashPassword(
   return { salt, hash: crypto.scryptSync(password, salt, 64).toString("hex") };
 }
 
-export function verifyPassword(password, salt, stored) {
-  const actual = Buffer.from(
-    crypto.scryptSync(password, salt, 64).toString("hex"),
-  );
+const scrypt = (password, salt) =>
+  new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, 64, (error, derivedKey) => {
+      if (error) reject(error);
+      else resolve(derivedKey);
+    });
+  });
+
+export async function verifyPassword(password, salt, stored) {
+  const actual = Buffer.from((await scrypt(password, salt)).toString("hex"));
   const expected = Buffer.from(stored);
   return (
     actual.length === expected.length &&

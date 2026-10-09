@@ -1,6 +1,16 @@
 const target = process.argv[2] || "http://127.0.0.1:5000/api/products";
-const concurrency = Number(process.argv[3] || 500);
-const durationMs = Number(process.argv[4] || 15000);
+const requestedConcurrency = Number(process.argv[3] || 500);
+const requestedDurationMs = Number(process.argv[4] || 15000);
+const concurrency = Number.isInteger(requestedConcurrency)
+  ? Math.min(2000, Math.max(1, requestedConcurrency))
+  : 500;
+const durationMs = Number.isFinite(requestedDurationMs)
+  ? Math.min(300_000, Math.max(1000, requestedDurationMs))
+  : 15000;
+const requestTimeoutMs = Math.min(
+  30_000,
+  Math.max(1000, Number(process.env.LOAD_TEST_REQUEST_TIMEOUT_MS) || 10_000),
+);
 const deadline = Date.now() + durationMs;
 const times = [];
 let completed = 0;
@@ -12,7 +22,9 @@ async function client() {
   while (Date.now() < deadline) {
     const started = performance.now();
     try {
-      const response = await fetch(target);
+      const response = await fetch(target, {
+        signal: AbortSignal.timeout(requestTimeoutMs),
+      });
       await response.arrayBuffer();
       statusCounts[response.status] = (statusCounts[response.status] || 0) + 1;
       if (!response.ok) statusErrors += 1;
@@ -58,3 +70,5 @@ console.log(
     2,
   ),
 );
+
+if (failed > 0 || statusErrors > 0 || completed === 0) process.exitCode = 1;

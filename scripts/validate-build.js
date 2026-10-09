@@ -32,26 +32,47 @@ const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(
   (match) => match[1],
 );
 const sitemapPaths = new Set(locations.map((location) => new URL(location).pathname || "/"));
+const sizePathFor = (item) => item.path || `/tyre-sizes/${item.slug}`;
+const hasSizeEvidence = (item) =>
+  (item.vehicleReferences?.length || 0) > 0 ||
+  (item.catalogueReferences?.length || 0) > 0;
+const evidenceBackedSizes = SEO_SIZES.filter(hasSizeEvidence);
+const unsupportedSizes = SEO_SIZES.filter((item) => !hasSizeEvidence(item));
 const requiredHierarchyPaths = [
   TYRE_RATES_PAGE.route,
   ...Object.values(VEHICLE_MAKE_PAGES).map((item) => item.route),
   "/privacy",
-  ...SEO_SIZES.map((item) => item.path || `/tyre-sizes/${item.slug}`),
+  ...evidenceBackedSizes.map(sizePathFor),
   ...TYRE_RIM_HUBS.filter((item) => !item.noIndex).map((item) => item.path),
   ...GUIDES.map((item) => item.path || `/guides/${item.slug}`),
   ...GUIDE_TOPICS.map((item) => item.path),
 ];
 const manifestSizePaths = new Set(TYRE_SIZE_MANIFEST.map((item) => item.path));
-const publishedSizePaths = new Set(SEO_SIZES.map((item) => item.path));
+const generatedSizePaths = new Set(SEO_SIZES.map(sizePathFor));
 const requiredRimDiameters = Array.from({ length: 13 }, (_, index) => index + 12);
 
 assert(locations.length >= 50, "The sitemap contains too few indexable pages");
 assert(new Set(locations).size === locations.length, "Duplicate sitemap URLs found");
 assert(
-  manifestSizePaths.size === publishedSizePaths.size &&
-    [...manifestSizePaths].every((item) => publishedSizePaths.has(item)),
-  "Published tyre-size pages do not exactly match the supported size manifest",
+  manifestSizePaths.size === generatedSizePaths.size &&
+    [...manifestSizePaths].every((item) => generatedSizePaths.has(item)),
+  "Generated tyre-size pages do not exactly match the supported size manifest",
 );
+assert(evidenceBackedSizes.length > 0, "No evidence-backed exact tyre-size pages found");
+SEO_SIZES.forEach((item) => {
+  const sizePath = sizePathFor(item);
+  const shouldNoIndex = !hasSizeEvidence(item);
+  assert(
+    Boolean(item.noIndex) === shouldNoIndex,
+    `Tyre-size indexability does not match evidence: ${sizePath}`,
+  );
+  assert(
+    shouldNoIndex ? !sitemapPaths.has(sizePath) : sitemapPaths.has(sizePath),
+    shouldNoIndex
+      ? `Unsupported exact tyre-size page leaked into sitemap: ${sizePath}`
+      : `Evidence-backed exact tyre-size page missing from sitemap: ${sizePath}`,
+  );
+});
 requiredRimDiameters.forEach((rim) => {
   assert(
     sitemapPaths.has(`/tyre-sizes/${rim}-inch`),
@@ -227,6 +248,22 @@ requiredHierarchyPaths.forEach((requiredPath) => {
   );
 });
 
+for (const item of SEO_SIZES) {
+  const route = sizePathFor(item);
+  const relative = route.replace(/^\/+|\/+$/g, "");
+  const file = path.join(dist, relative, "index.html");
+  assert(await exists(file), `Missing accessible exact tyre-size page: ${route}`);
+  if (!(await exists(file))) continue;
+  const html = await read(file);
+  assert(/<h1[\s>]/i.test(html), `Exact tyre-size page is missing an H1: ${route}`);
+  if (!hasSizeEvidence(item)) {
+    assert(
+      /<meta name="robots" content="[^"]*noindex/i.test(html),
+      `Unsupported exact tyre-size page must be noindex: ${route}`,
+    );
+  }
+}
+
 for (const relative of ["404.html", "product-fallback.html", "admin/index.html", "quote/index.html"]) {
   const file = path.join(dist, relative);
   assert(await exists(file), `Missing utility page: ${relative}`);
@@ -240,5 +277,7 @@ if (failures.length) {
   failures.forEach((failure) => console.error(`FAIL: ${failure}`));
   process.exitCode = 1;
 } else {
-  console.log(`Validated ${locations.length} unique indexable routes, their metadata and JSON-LD.`);
+  console.log(
+    `Validated ${locations.length} unique indexable routes (${evidenceBackedSizes.length} evidence-backed exact sizes) and ${unsupportedSizes.length} accessible noindex size routes.`,
+  );
 }

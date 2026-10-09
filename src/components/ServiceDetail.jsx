@@ -33,7 +33,9 @@ export default function ServiceDetail() {
   const booking = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi Wheels & Wheels, please share the current rate and availability for ${service.title}. My vehicle is: `)}`;
   const canonical = `/services/${service.slug}`;
   const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
-  const description = `${service.summary} Ask Wheels & Wheels Lahore for the current service rate and available time.`;
+  const description =
+    service.metaDescription ||
+    `${service.summary} Ask Wheels & Wheels Lahore for the current service rate and available time.`;
   return (
     <>
       <SeoHead

@@ -71,5 +71,11 @@ schema.index({ status: 1, createdAt: -1 });
 schema.index({ phone: 1, createdAt: -1 });
 schema.index({ dedupeKey: 1, createdAt: -1 });
 schema.index({ reference: 1 }, { unique: true, sparse: true });
+schema.index({ "notification.adminEmailStatus": 1 });
+schema.index({ "notification.customerEmailStatus": 1 });
+schema.index({
+  "notification.quoteEmailStatus": 1,
+  "notification.quoteEmailAttemptedAt": 1,
+});
 
 export default mongoose.model("Inquiry", schema);

@@ -1,6 +1,7 @@
 import { FaCheck, FaChevronRight, FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { getCommercialPage } from "../../Data/commercialPages.js";
+import PRODUCTS from "../../Data/productsData.js";
 import SeoHead from "./SeoHead.jsx";
 
 const WHATSAPP = "923390045836";
@@ -30,6 +31,9 @@ export default function CommercialLandingPage({ pageKey }) {
   }
 
   const baseUrl = siteUrl();
+  const rimProducts = page.key === "alloy-rims"
+    ? PRODUCTS.filter((product) => product.category === "Rims")
+    : [];
 
   const collectionSchema = {
     "@context": "https://schema.org",
@@ -121,6 +125,30 @@ export default function CommercialLandingPage({ pageKey }) {
           </section>
         ))}
       </article>
+
+      {rimProducts.length > 0 && (
+        <section className="section growth-related" aria-labelledby="rim-catalogue-title">
+          <p className="eyebrow">REPRESENTATIVE RIM CATALOGUE</p>
+          <h2 id="rim-catalogue-title">Explore alloy-rim styles, then confirm the full fitment.</h2>
+          <p>
+            These catalogue images are representative. We verify diameter, width,
+            PCD, offset, centre bore, load suitability and the exact available
+            design before quotation.
+          </p>
+          <div className="growth-link-grid">
+            {rimProducts.map((product) => (
+              <Link
+                className="growth-link-card"
+                to={`/product/${product.slug || product._id}`}
+                key={product.slug || product._id}
+              >
+                <span>{product.title}<small>{product.size} · Representative image</small></span>
+                <FaChevronRight aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="section growth-faq" aria-labelledby={`${page.key}-faq`}>
         <p className="eyebrow">COMMON QUESTIONS</p>

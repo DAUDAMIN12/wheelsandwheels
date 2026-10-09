@@ -6,6 +6,8 @@ export const SERVICES = [
     eyebrow: "SAFE FITTING. CORRECT PRESSURE.",
     tagline:
       "Precision mounting protects your tyres, wheels and passengers from the very first kilometre.",
+    metaDescription:
+      "Professional tyre installation in Lahore with rim-safe mounting, valve and pressure checks, wheel balancing and correct torque. Ask for the current rate.",
     summary:
       "Tyre installation is more than placing rubber onto a rim. The bead must seal correctly, the wheel must be inspected, the valve must be reliable and every wheel nut must be tightened to the vehicle manufacturer's specification.",
     why: "Incorrect installation can damage the tyre bead, create slow air leaks, cause vibration and allow wheel nuts to loosen or distort the brake disc. Professional fitting gives a new tyre the best chance of delivering its designed grip, comfort and lifespan.",
@@ -56,6 +58,8 @@ export const SERVICES = [
     eyebrow: "SMOOTHER. QUIETER. LONGER LASTING.",
     tagline:
       "Accurate balancing removes vibration and protects tyres, steering and suspension at speed.",
+    metaDescription:
+      "Computerised wheel balancing in Lahore to reduce vibration and uneven tyre wear. Ask Wheels & Wheels for the current service rate and available time.",
     summary:
       "Even a perfectly round wheel has small weight differences. A computerised balancer measures where that weight is uneven and tells the technician exactly where corrective weights should be installed.",
     why: "An imbalance becomes more noticeable as speed increases. Left untreated, it can create steering shake, uneven tread wear, driver fatigue and extra stress on wheel bearings and suspension components.",
@@ -107,6 +111,8 @@ export const SERVICES = [
     eyebrow: "STRAIGHT TRACKING. EVEN WEAR.",
     tagline:
       "Precision geometry keeps your vehicle stable, your steering centred and your tyres wearing evenly.",
+    metaDescription:
+      "Wheel alignment in Lahore for straighter tracking, centred steering and more even tyre wear. Ask Wheels & Wheels for the current rate and available time.",
     summary:
       "Wheel alignment adjusts toe, camber and caster so the wheels sit at the angles specified by the vehicle manufacturer. Modern measuring equipment compares each wheel and guides exact corrections.",
     why: "A small alignment error can scrub rubber away on every journey. Correct geometry improves straight-line stability, steering response and braking confidence while preventing expensive tyres from wearing prematurely.",

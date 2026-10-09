@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import {
   BrowserRouter,
   Link,
@@ -162,6 +164,7 @@ function RouteEffects() {
     }
 
     if (previousRoute.current === route) return undefined;
+    const pathnameChanged = previousRoute.current?.split("#")[0] !== pathname;
     previousRoute.current = route;
     root.classList.remove("route-enter");
     // Force a reflow so the animation restarts even between similar pages.
@@ -174,6 +177,13 @@ function RouteEffects() {
     } else {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
+    if (pathnameChanged) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          document.getElementById("main-content")?.focus({ preventScroll: true });
+        });
+      });
+    }
     const timer = window.setTimeout(
       () => root.classList.remove("route-enter"),
       800,
@@ -183,7 +193,13 @@ function RouteEffects() {
   return null;
 }
 
+function usesRepresentativeImage(product) {
+  const image = String(product?.image || "").toLowerCase();
+  return ["/tyre.jpg", "/rim1.jpg", "/rim.jpg"].includes(image);
+}
+
 function ProductCard({ product, add }) {
+  const representativeImage = usesRepresentativeImage(product);
   const productDestination = product.onRequest
     ? `/quote?tyreSize=${encodeURIComponent(product.size)}&message=${encodeURIComponent(`Please quote ${product.brand} options for ${product.size}.`)}`
     : `/product/${product.slug || product._id}`;
@@ -191,9 +207,15 @@ function ProductCard({ product, add }) {
     <article className="product-card">
       <div className="product-image">
         <Link to={productDestination}>
-          <img src={product.image} alt={product.title} loading="lazy" decoding="async" />
+          <img
+            src={product.image}
+            alt={`${product.title}${representativeImage ? " representative catalogue image" : ""}`}
+            loading="lazy"
+            decoding="async"
+          />
         </Link>
         {product.badge && <span className="pill">{product.badge}</span>}
+        {representativeImage && <span className="representative-image-note">Representative image</span>}
         <button
           className="quick-add"
           onClick={() => add(product)}
@@ -896,7 +918,7 @@ function Shop({ add, products, loading }) {
   const requestedQuery = params.get("q") || "";
   const requestedParts = requestedSize.match(/(\d{3})\/(\d{2})\s*R(\d{2})/i);
   const requestedCategory = params.get("category");
-  const initial =
+  const categoryFromUrl =
     requestedCategory === "Tyres"
       ? "All Tyres"
       : requestedCategory === "Chinese Tyres"
@@ -904,16 +926,40 @@ function Shop({ add, products, loading }) {
         : requestedCategory === "Japanese Tyres"
           ? "Japanese Brands"
           : requestedCategory || "All Tyres";
+  const requestedWidth = requestedParts?.[1] || params.get("width") || "";
+  const requestedProfile = requestedParts?.[2] || params.get("profile") || "";
+  const requestedRim = requestedParts?.[3] || params.get("rim") || "";
   const [size, setSize] = useState(requestedSize);
-  const [category, setCategory] = useState(initial);
-  const [rim, setRim] = useState(requestedParts?.[3] || "");
-  const [width, setWidth] = useState(requestedParts?.[1] || "");
-  const [profile, setProfile] = useState(requestedParts?.[2] || "");
+  const [category, setCategory] = useState(categoryFromUrl);
+  const [rim, setRim] = useState(requestedRim);
+  const [width, setWidth] = useState(requestedWidth);
+  const [profile, setProfile] = useState(requestedProfile);
   const [query, setQuery] = useState(requestedQuery);
-  const [sort, setSort] = useState("featured");
+  const [sort, setSort] = useState(params.get("sort") || "featured");
   useEffect(() => {
     setQuery(requestedQuery);
-  }, [requestedQuery]);
+    setCategory(categoryFromUrl);
+    setSort(params.get("sort") || "featured");
+    if (categoryFromUrl === "Rims") {
+      setSize("");
+      setWidth("");
+      setProfile("");
+      setRim(requestedRim);
+    } else {
+      setSize(requestedSize);
+      setWidth(requestedWidth);
+      setProfile(requestedProfile);
+      setRim(requestedRim);
+    }
+  }, [categoryFromUrl, params, requestedProfile, requestedQuery, requestedRim, requestedSize, requestedWidth]);
+  const replaceFilterParams = (changes) => {
+    const next = new URLSearchParams(params);
+    Object.entries(changes).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
+    setParams(next, { replace: true });
+  };
   const updateQuery = (value) => {
     setQuery(value);
     const next = new URLSearchParams(params);
@@ -962,10 +1008,10 @@ function Shop({ add, products, loading }) {
                 p.category === "Tyres" &&
                 p.origin === "Japan") ||
               (category === "Rims" && p.category === "Rims")) &&
-            (!size || p.size === size) &&
+            (category === "Rims" || !size || p.size === size) &&
             (!rim || Number(p.rimDiameter) === Number(rim)) &&
-            (!width || Number(p.width) === Number(width)) &&
-            (!profile || Number(p.profile) === Number(profile)) &&
+            (category === "Rims" || !width || Number(p.width) === Number(width)) &&
+            (category === "Rims" || !profile || Number(p.profile) === Number(profile)) &&
             `${p.title} ${p.brand} ${p.size}`
               .toLowerCase()
               .includes(query.toLowerCase()),
@@ -1050,7 +1096,21 @@ function Shop({ add, products, loading }) {
           ].map((c) => (
             <button
               className={category === c ? "selected" : ""}
-              onClick={() => setCategory(c)}
+              onClick={() => {
+                setCategory(c);
+                const enteringRims = c === "Rims";
+                if (enteringRims) {
+                  setSize("");
+                  setWidth("");
+                  setProfile("");
+                }
+                replaceFilterParams({
+                  category: c === "All Tyres" ? "Tyres" : c,
+                  ...(enteringRims
+                    ? { size: "", width: "", profile: "" }
+                    : {}),
+                });
+              }}
               key={c}
             >
               {c}
@@ -1104,12 +1164,20 @@ function Shop({ add, products, loading }) {
             </div>
             {category !== "Rims" && (
               <select
+                aria-label="Tyre width"
                 value={width}
                 onChange={(event) => {
-                  setWidth(event.target.value);
+                  const nextWidth = event.target.value;
+                  setWidth(nextWidth);
                   setProfile("");
                   setRim("");
                   setSize("");
+                  replaceFilterParams({
+                    size: "",
+                    width: nextWidth,
+                    profile: "",
+                    rim: "",
+                  });
                 }}
               >
                 <option value="">Any width</option>
@@ -1120,11 +1188,18 @@ function Shop({ add, products, loading }) {
             )}
             {category !== "Rims" && (
               <select
+                aria-label="Tyre profile"
                 value={profile}
                 onChange={(event) => {
-                  setProfile(event.target.value);
+                  const nextProfile = event.target.value;
+                  setProfile(nextProfile);
                   setRim("");
                   setSize("");
+                  replaceFilterParams({
+                    size: "",
+                    profile: nextProfile,
+                    rim: "",
+                  });
                 }}
               >
                 <option value="">Any profile</option>
@@ -1134,11 +1209,13 @@ function Shop({ add, products, loading }) {
               </select>
             )}
             <select
+              aria-label={category === "Rims" ? "Rim diameter" : "Tyre rim diameter"}
               value={rim}
               onChange={(event) => {
                 const nextRim = event.target.value;
                 setRim(nextRim);
                 setSize("");
+                replaceFilterParams({ size: "", rim: nextRim });
               }}
             >
               <option value="">12–24 inch</option>
@@ -1160,6 +1237,7 @@ function Shop({ add, products, loading }) {
                   setWidth("");
                   setProfile("");
                   setSize("");
+                  replaceFilterParams({ size: "", width: "", profile: "", rim: "" });
                 }}
               >
                 Clear
@@ -1192,6 +1270,7 @@ function Shop({ add, products, loading }) {
                     setWidth("");
                     setProfile("");
                     setSize("");
+                    replaceFilterParams({ size: "", width: "", profile: "", rim: "" });
                   }}
                 >
                   View full range
@@ -1204,7 +1283,13 @@ function Shop({ add, products, loading }) {
               <span>
                 Showing exact size <b>{size}</b>
               </span>
-              <button onClick={() => setSize("")}>View every size</button>
+              <button onClick={() => {
+                setSize("");
+                setWidth("");
+                setProfile("");
+                setRim("");
+                replaceFilterParams({ size: "", width: "", profile: "", rim: "" });
+              }}>View every size</button>
             </div>
           )}
           <div className="shop-tools">
@@ -1218,7 +1303,14 @@ function Shop({ add, products, loading }) {
                 type="search"
               />
             </label>
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
+            <select
+              aria-label="Sort products"
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value);
+                replaceFilterParams({ sort: e.target.value === "featured" ? "" : e.target.value });
+              }}
+            >
               <option value="featured">Featured</option>
               <option value="brand">Brand: A to Z</option>
             </select>
@@ -1528,8 +1620,13 @@ function ProductDetail({ products, add }) {
           onClick={() => setZoom(true)}
           aria-label="Open product image zoom"
         >
-          <img src={product.image} alt={product.title} decoding="async" />
+          <img
+            src={product.image}
+            alt={`${product.title}${usesRepresentativeImage(product) ? " representative catalogue image" : ""}`}
+            decoding="async"
+          />
           {product.badge && <span className="pill">{product.badge}</span>}
+          {usesRepresentativeImage(product) && <span className="representative-image-note">Representative image</span>}
           <span className="zoom-hint">
             <FaSearch /> Click to zoom
           </span>
@@ -2454,11 +2551,11 @@ function QuoteRequest() {
               required
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
-              placeholder="Tyres, rims, complete package, driving preference, brands you like…"
+              placeholder="Tyres, rims, driving preference, brands you like…"
             />
           </label>
         </div>
-        {error && <div className="form-error">{error}</div>}
+        {error && <div className="form-error" role="alert" aria-live="assertive">{error}</div>}
         <button className="place-order" disabled={busy}>
           {busy ? "Sending request…" : "Send quote request"}
         </button>
@@ -2602,6 +2699,7 @@ function InquiryEmailRetry({ item, onSaved }) {
     attemptedAt === 0 ||
     Date.now() - attemptedAt >= 2 * 60 * 1000;
   const retryable = (status) =>
+    !status ||
     ["failed", "not_configured"].includes(status) ||
     (status === "pending" && pendingIsStale);
   const needsRetry =
@@ -2634,7 +2732,56 @@ function InquiryEmailRetry({ item, onSaved }) {
       <button type="button" disabled={busy} onClick={retry}>
         {busy ? "Retrying..." : "Retry receipt emails"}
       </button>
-      {message && <small>{message}</small>}
+      {message && <small role="status">{message}</small>}
+    </div>
+  );
+}
+
+function InquiryQuoteEmailRetry({ item, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const status = item.notification?.quoteEmailStatus;
+  const attemptedAt = item.notification?.quoteEmailAttemptedAt
+    ? new Date(item.notification.quoteEmailAttemptedAt).getTime()
+    : 0;
+  const pendingIsStale =
+    !Number.isFinite(attemptedAt) ||
+    attemptedAt === 0 ||
+    Date.now() - attemptedAt >= 2 * 60 * 1000;
+  const hasSavedQuote =
+    Boolean(item.email && item.reply) &&
+    (item.quotedAmount != null || Boolean(item.quotedItems));
+  const retryable =
+    !status ||
+    ["failed", "not_configured"].includes(status) ||
+    (status === "pending" && pendingIsStale);
+  if (!hasSavedQuote || !retryable) return null;
+  const retry = async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await api(`/inquiries/${item._id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ retryQuoteEmail: true }),
+      });
+      if (result.emailSent)
+        setMessage("Quote email delivered.");
+      else if (result.emailDeliveryStatus === "not_configured")
+        setMessage("SMTP is still not configured.");
+      else setMessage("Quote delivery still failed; use call or WhatsApp.");
+      onSaved();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="email-retry-control">
+      <button type="button" disabled={busy} onClick={retry}>
+        {busy ? "Retrying..." : "Retry quote email"}
+      </button>
+      {message && <small role="status">{message}</small>}
     </div>
   );
 }
@@ -2677,6 +2824,14 @@ function Admin() {
   useEffect(() => {
     setToken(localStorage.getItem("ww-admin-token"));
   }, []);
+  useEffect(() => {
+    const expireSession = () => {
+      setToken(null);
+      setError("Your admin session expired. Please sign in again.");
+    };
+    window.addEventListener("ww-admin-session-expired", expireSession);
+    return () => window.removeEventListener("ww-admin-session-expired", expireSession);
+  }, []);
   const load = async () => {
     const [ordersResult, productsResult, summaryResult, inquiriesResult] =
       await Promise.allSettled([
@@ -2699,6 +2854,12 @@ function Admin() {
       summaryResult,
       inquiriesResult,
     ].filter((result) => result.status === "rejected");
+    if (failures.some((result) => result.reason?.status === 401)) {
+      localStorage.removeItem("ww-admin-token");
+      setToken(null);
+      setError("Your admin session expired. Please sign in again.");
+      return;
+    }
     setError(
       failures.length
         ? `Some dashboard data could not be refreshed: ${failures[0].reason?.message || "try again"}`
@@ -2822,7 +2983,7 @@ function Admin() {
               onChange={(e) => setLogin({ ...login, password: e.target.value })}
             />
           </label>
-          {error && <div className="form-error">{error}</div>}
+          {error && <div className="form-error" role="alert" aria-live="assertive">{error}</div>}
           <button>Sign in</button>
         </form>
       </main>
@@ -2915,7 +3076,7 @@ function Admin() {
           Add product
         </button>
       </div>
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error" role="alert" aria-live="assertive">{error}</div>}
       {tab === "inquiries" && (
         <div className="admin-table inquiry-table">
           <div className="table-row inquiry-row head">
@@ -2964,7 +3125,7 @@ function Admin() {
                     label="Customer receipt"
                     status={item.notification?.customerEmailStatus || (item.email ? undefined : "not_requested")}
                   />
-                  {item.notification?.quoteEmailStatus && (
+                  {(item.notification?.quoteEmailStatus || item.reply || item.quotedItems || item.quotedAmount != null) && (
                     <EmailDeliveryBadge
                       label="Quote email"
                       status={item.notification.quoteEmailStatus}
@@ -2972,6 +3133,7 @@ function Admin() {
                   )}
                 </div>
                 <InquiryEmailRetry item={item} onSaved={load} />
+                <InquiryQuoteEmailRetry item={item} onSaved={load} />
                 <a
                   className="admin-whatsapp"
                   href={`https://wa.me/${whatsappNumberFor(item.phone)}`}
@@ -3215,9 +3377,9 @@ function Footer() {
         <div>
           <h4>Call & WhatsApp</h4>
           <p>
-            0321 4229594
+            <a href="tel:+923214229594">0321 4229594</a>
             <br />
-            0339 0045836
+            <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noreferrer">0339 0045836 (WhatsApp)</a>
           </p>
         </div>
         <div>
@@ -3503,8 +3665,12 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
 }
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <>
+      <BrowserRouter>
+        <AppShell />
+      </BrowserRouter>
+      <Analytics />
+      <SpeedInsights />
+    </>
   );
 }
