@@ -332,3 +332,161 @@ body.navigation-open,body.dialog-open{overflow:hidden}
 }
 /* Honest labelling for catalogue placeholders until exact stock photography is available. */
 .representative-image-note{position:absolute;left:13px;bottom:13px;z-index:2;background:#fff;color:#25282a;border:1px solid #d7dadd;padding:6px 8px;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.detail-image .representative-image-note{bottom:18px}.growth-link-card span{display:flex;flex-direction:column;gap:4px}.growth-link-card small{color:#747a7f;font-size:10px;font-weight:500;text-transform:none;letter-spacing:0}
+
+/* Vehicle pages: make the exact-size references useful without presenting them as approvals. */
+.vehicle-fitment-directory{padding-top:45px!important}
+.vehicle-fitment-heading>p{max-width:545px;color:#5f686d;font-size:11px;line-height:1.75}
+.vehicle-fitment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.vehicle-fitment-card{display:flex;flex-direction:column;min-width:0;background:#fff;border:1px solid #d9dddf;border-top:4px solid var(--red);padding:25px}
+.vehicle-fitment-card-head{position:relative;padding-right:95px}
+.vehicle-fitment-card-head .eyebrow{margin:0 0 9px;font-size:8px}
+.vehicle-fitment-card h3{margin:0;font:800 34px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.vehicle-fitment-card h3 a{text-decoration:underline;text-decoration-color:#e32b2f55;text-underline-offset:5px}
+.vehicle-fitment-card h3 a:hover,.vehicle-fitment-card h3 a:focus-visible{color:var(--red);text-decoration-color:var(--red)}
+.vehicle-fitment-status{position:absolute;right:0;top:0;max-width:88px;padding:6px 7px;background:#fff4d9;color:#785300;font-size:7px;font-weight:800;line-height:1.25;text-align:center;text-transform:uppercase;letter-spacing:.05em}
+.vehicle-fitment-details{display:grid;gap:0;margin:22px 0 0}
+.vehicle-fitment-details>div{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid #e4e6e7}
+.vehicle-fitment-details dt{color:#7b8388;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.vehicle-fitment-details dd{margin:0;color:#343b3f;font-size:10px;line-height:1.55;overflow-wrap:anywhere}
+.vehicle-fitment-card-note{margin:17px 0 0;color:#626b70;font-size:9px;line-height:1.65}
+.vehicle-fitment-size-link{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:45px;margin-top:auto;padding-top:18px;border-top:1px solid #dfe2e3;color:var(--red);font-size:8px;font-weight:800;text-transform:uppercase}
+.vehicle-fitment-size-link svg{flex:none}
+.vehicle-fitment-warning{display:flex;align-items:flex-start;gap:14px;margin-top:17px;padding:23px;background:#171c1f;color:#fff;border-left:4px solid var(--red)}
+.vehicle-fitment-warning>svg{flex:none;margin-top:3px;color:#fff}
+.vehicle-fitment-warning strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.035em}
+.vehicle-fitment-warning p{max-width:880px;margin:7px 0 0;color:#c4c9cc;font-size:10px;line-height:1.7}
+.vehicle-fitment-provenance{display:grid;grid-template-columns:minmax(240px,.8fr) minmax(0,1.2fr);gap:30px;margin-top:17px;padding:26px;background:#eef0f1;border:1px solid #d9dddf}
+.vehicle-fitment-provenance h3,.vehicle-related-models h3{margin:6px 0 0;font:800 27px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.vehicle-fitment-reviewed{margin:9px 0 0;color:#646d72;font-size:9px}
+.vehicle-fitment-provenance ul{list-style:none;margin:0;padding:0}
+.vehicle-fitment-provenance li{display:flex;flex-direction:column;gap:4px;padding:10px 0;border-top:1px solid #d4d8da;color:#30373b;font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.vehicle-fitment-provenance li:first-child{padding-top:0;border-top:0}
+.vehicle-fitment-provenance a{text-decoration:underline;text-underline-offset:3px}
+.vehicle-fitment-provenance a:hover,.vehicle-fitment-provenance a:focus-visible{color:var(--red)}
+.vehicle-fitment-provenance small{color:#70787d;font-size:8px}
+.vehicle-related-models{margin-top:34px}
+.vehicle-related-model-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px}
+.vehicle-related-model-grid>a{display:flex;align-items:center;justify-content:space-between;gap:15px;min-height:54px;padding:14px 16px;background:#fff;border:1px solid #d9dddf;font-size:10px;font-weight:750}
+.vehicle-related-model-grid>a:hover,.vehicle-related-model-grid>a:focus-visible{border-color:var(--red);color:var(--red)}
+.vehicle-related-model-grid svg{flex:none}
+
+@media(max-width:900px){
+  .vehicle-fitment-grid,.vehicle-related-model-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vehicle-fitment-provenance{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .vehicle-fitment-directory{padding-top:34px!important}
+  .vehicle-fitment-heading{display:block}
+  .vehicle-fitment-heading>p{margin-top:14px;font-size:13px}
+  .vehicle-fitment-grid,.vehicle-related-model-grid{grid-template-columns:1fr}
+  .vehicle-fitment-card{padding:21px 17px}
+  .vehicle-fitment-card h3{font-size:31px}
+  .vehicle-fitment-details>div{grid-template-columns:86px minmax(0,1fr)}
+  .vehicle-fitment-details dd,.vehicle-fitment-card-note,.vehicle-fitment-warning p,.vehicle-fitment-provenance li{font-size:12px}
+  .vehicle-fitment-size-link,.vehicle-related-model-grid>a{min-height:48px;font-size:10px}
+  .vehicle-fitment-warning,.vehicle-fitment-provenance{padding:20px 17px}
+}
+
+/* Scalable make/model directory used by the full Find by Vehicle page. */
+.vehicle-directory{padding-top:58px!important;padding-bottom:70px!important}
+.vehicle-directory-heading{align-items:flex-end}
+.vehicle-directory-heading>div>p:not(.eyebrow){max-width:760px;color:#687177;font-size:11px;line-height:1.75}
+.vehicle-directory-total{display:flex;min-width:138px;flex-direction:column;align-items:flex-end;color:#727a7f;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.vehicle-directory-total strong{color:#171c1f;font:800 48px/.9 'Barlow Condensed',Arial,sans-serif;letter-spacing:0}
+.vehicle-directory-tools{display:grid;grid-template-columns:minmax(280px,.72fr) minmax(0,1.28fr);gap:14px;margin:30px 0 14px;padding:20px;background:#fff;border:1px solid #dfe2e3;border-top:3px solid var(--red)}
+.vehicle-directory-search{display:grid;align-content:start;gap:8px;color:#5f686d;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.vehicle-directory-search>label{display:flex;align-items:center;gap:8px}
+.vehicle-directory-search>label svg{color:var(--red);font-size:12px}
+.vehicle-directory-search>div{position:relative;display:flex;min-width:0}
+.vehicle-directory-search input{width:100%;height:50px;padding:0 72px 0 14px;border:1px solid #cfd4d6;background:#f8f8f6;color:#171c1f;font-size:13px;text-transform:none;outline:none}
+.vehicle-directory-search input:focus{border-color:#171c1f;box-shadow:0 0 0 3px #e21f2630}
+.vehicle-directory-search button{position:absolute;right:5px;top:5px;height:40px;padding:0 11px;border:0;background:#171c1f;color:#fff;font-size:8px;font-weight:800;text-transform:uppercase;cursor:pointer}
+.vehicle-make-index{display:flex;align-content:flex-start;align-items:flex-start;gap:7px;flex-wrap:wrap;padding-top:22px}
+.vehicle-make-index a{display:inline-flex;min-height:32px;align-items:center;gap:7px;padding:6px 9px;border:1px solid #d7dbdd;background:#f2f3f2;color:#30373b;font-size:9px;font-weight:750}
+.vehicle-make-index a:hover,.vehicle-make-index a:focus-visible{border-color:var(--red);background:#fff;color:var(--red)}
+.vehicle-make-index span{display:grid;min-width:18px;height:18px;place-items:center;border-radius:50%;background:#fff;color:#6b7378;font-size:7px}
+.vehicle-directory-status{margin:0 0 15px;color:#6d757a;font-size:9px}
+.vehicle-make-groups{display:grid;gap:18px}
+.vehicle-make-group{scroll-margin-top:118px;background:#fff;border:1px solid #d9dddf}
+.vehicle-make-group>header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:23px 25px;border-bottom:1px solid #dfe2e3;background:linear-gradient(90deg,#f2f3f2,#fff)}
+.vehicle-make-group>header .eyebrow{margin:0 0 5px}
+.vehicle-make-group>header h3{margin:0;font:800 34px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.vehicle-make-group>header h3 a:hover,.vehicle-make-group>header h3 a:focus-visible{color:var(--red)}
+.vehicle-make-link{display:inline-flex;align-items:center;gap:10px;color:var(--red);font-size:8px;font-weight:800;text-transform:uppercase}
+.vehicle-model-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
+.vehicle-model-card{display:flex;min-width:0;flex-direction:column;padding:25px;border-right:1px solid #e1e4e5;border-bottom:1px solid #e1e4e5}
+.vehicle-model-card:nth-child(3n){border-right:0}
+.vehicle-model-card-head{display:flex;align-items:flex-start;gap:9px;min-height:31px}
+.vehicle-model-card-head>svg{flex:none;margin-top:1px;color:var(--red);font-size:16px}
+.vehicle-model-card-head>p{margin:0;color:#747c81;font-size:8px;line-height:1.45}
+.vehicle-model-card h4{margin:11px 0 10px;font:800 28px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.vehicle-model-card h4 a:hover,.vehicle-model-card h4 a:focus-visible{color:var(--red)}
+.vehicle-model-card>p{min-height:50px;margin:0;color:#687177;font-size:10px;line-height:1.7}
+.vehicle-model-sizes{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.vehicle-model-sizes a,.vehicle-model-sizes span{display:inline-flex;min-height:31px;align-items:center;padding:6px 9px;border:1px solid #d7dbdd;background:#eef0f1;color:#30373b;font-size:8px;font-weight:800}
+.vehicle-model-sizes a:hover,.vehicle-model-sizes a:focus-visible{border-color:var(--red);background:#fff;color:var(--red)}
+.vehicle-model-sizes .specialist-size-link{border-style:dashed}
+.vehicle-model-sizes span{border-style:dashed;color:#626b70}
+.vehicle-model-card .guide-read-link{margin-top:auto;padding-top:18px}
+.vehicle-directory-empty{display:grid;min-height:270px;place-items:center;align-content:center;padding:35px;text-align:center;background:#fff;border:1px solid #dfe2e3}
+.vehicle-directory-empty>svg{color:var(--red);font-size:30px}
+.vehicle-directory-empty h3{margin:16px 0 7px;font:800 31px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.vehicle-directory-empty p{margin:0;color:#697177;font-size:11px}
+.vehicle-directory-empty button{min-height:42px;margin-top:20px;padding:0 16px;border:0;background:var(--red);color:#fff;font-size:8px;font-weight:800;text-transform:uppercase;cursor:pointer}
+
+@media(max-width:900px){
+  .vehicle-directory-tools{grid-template-columns:1fr}
+  .vehicle-make-index{padding-top:0}
+  .vehicle-model-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vehicle-model-card:nth-child(3n){border-right:1px solid #e1e4e5}
+  .vehicle-model-card:nth-child(2n){border-right:0}
+}
+@media(max-width:600px){
+  .vehicle-directory{padding-top:42px!important;padding-bottom:46px!important}
+  .vehicle-directory-heading{display:block}
+  .vehicle-directory-total{align-items:flex-start;margin-top:16px}
+  .vehicle-directory-tools{margin-top:20px;padding:14px}
+  .vehicle-directory-search{font-size:12px}
+  .vehicle-directory-search input{height:52px;font-size:16px}
+  .vehicle-directory-search button{min-width:52px;font-size:11px}
+  .vehicle-make-index{flex-wrap:nowrap;overflow-x:auto;padding:2px 0 8px;scrollbar-width:thin}
+  .vehicle-make-index a{flex:none;min-height:44px;padding:9px 12px;font-size:12px}
+  .vehicle-make-index span{font-size:10px}
+  .vehicle-directory-status{font-size:12px}
+  .vehicle-make-group{scroll-margin-top:96px}
+  .vehicle-make-group>header{padding:19px 16px}
+  .vehicle-make-group>header h3{font-size:30px}
+  .vehicle-make-link{min-height:44px;font-size:11px}
+  .vehicle-model-grid{grid-template-columns:1fr}
+  .vehicle-model-card,.vehicle-model-card:nth-child(3n),.vehicle-model-card:nth-child(2n){padding:21px 16px;border-right:0}
+  .vehicle-model-card-head>p,.vehicle-model-card>p{font-size:12px}
+  .vehicle-model-card>p{min-height:0}
+  .vehicle-model-sizes a,.vehicle-model-sizes span{min-height:44px;padding:10px 12px;font-size:11px}
+  .vehicle-model-card .guide-read-link{min-height:48px;font-size:11px}
+}
+
+/* Clickable fitment chips and comfortable mobile reading targets. */
+.make-model-grid article>div a,
+.make-model-grid article>div span{
+  display:inline-flex;
+  min-height:36px;
+  align-items:center;
+  background:#eef0f1;
+  border:1px solid #dfe2e3;
+  padding:7px 9px;
+  font-size:8px;
+  font-weight:800;
+}
+.make-model-grid article>div a:hover,
+.make-model-grid article>div a:focus-visible{border-color:var(--red);background:#fff;color:var(--red)}
+.make-model-grid .specialist-size-link{border-style:dashed}
+
+@media(max-width:600px){
+  .make-model-grid article>div a,
+  .make-model-grid article>div span{min-height:44px;padding:10px 12px;font-size:11px}
+  .vehicle-fitment-card-head .eyebrow,
+  .vehicle-fitment-status,
+  .vehicle-fitment-details dt,
+  .vehicle-fitment-reviewed,
+  .vehicle-fitment-provenance small{font-size:11px}
+}

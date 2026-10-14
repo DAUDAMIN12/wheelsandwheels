@@ -1,3 +1,5 @@
+import { VEHICLE_MAKES } from "./vehicleFitments.js";
+
 export const TYRE_RATES_PAGE = {
   route: "/tyre-prices-pakistan",
   title: "Tyre Prices in Pakistan | Current Rate Guide",
@@ -9,7 +11,7 @@ export const TYRE_RATES_PAGE = {
   updatedAt: "2026-10-05",
 };
 
-export const VEHICLE_MAKE_PAGES = {
+const VEHICLE_MAKE_OVERRIDES = {
   suzuki: {
     make: "Suzuki",
     route: "/vehicles/suzuki",
@@ -57,3 +59,23 @@ export const VEHICLE_MAKE_PAGES = {
   },
 };
 
+export const VEHICLE_MAKE_PAGES = Object.fromEntries(
+  VEHICLE_MAKES.map((item) => {
+    const override = VEHICLE_MAKE_OVERRIDES[item.slug] || {};
+    return [item.slug, {
+      make: item.name,
+      makeSlug: item.slug,
+      route: `/vehicles/${item.slug}`,
+      title: `Tyres for ${item.name} Cars in Pakistan | Size Guide`,
+      metaDescription: `Browse ${item.name} car tyre-size references by model in Pakistan, then verify the exact year, variant, placard, ratings and wheel before buying.`,
+      heroTitle: `Find tyres for ${item.name} vehicles.`,
+      intro: `${item.description} Choose the exact model below, then confirm its year, variant and current sidewall size before requesting a current rate.`,
+      buyerFocus: [
+        "Identify the exact model, generation, year and variant",
+        "Check whether the vehicle still has its original wheel package",
+        "Match the complete size, load index and speed rating before comparing brands",
+      ],
+      ...override,
+    }];
+  }),
+);

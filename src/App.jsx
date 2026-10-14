@@ -33,6 +33,8 @@ import {
 } from "react-icons/fa";
 import PRODUCTS, { formatPrice } from "./Data/productsData";
 import TYRE_SIZE_MANIFEST, { findTyreSize } from "./Data/tyreSizeManifest.js";
+import { SEO_VEHICLES } from "./Data/seoContent.js";
+import { VEHICLE_MAKE_PAGES } from "./Data/marketPages.js";
 import { api, apiWithMeta } from "./api";
 import ServiceDetail from "./components/ServiceDetail.jsx";
 import FloatingWhatsApp from "./components/FloatingWhatsApp.jsx";
@@ -143,6 +145,18 @@ const SOURCING_BRANDS = [
   { brand: "Triangle", group: "chinese", origin: "China", badge: "Chinese value" },
   { brand: "RoadX", group: "chinese", origin: "China", badge: "Chinese value" },
 ];
+const NAV_VEHICLE_MAKES = ["suzuki", "toyota", "honda", "kia", "hyundai", "changan"]
+  .map((makeSlug) => {
+    const page = VEHICLE_MAKE_PAGES[makeSlug];
+    if (!page) return null;
+    return {
+      ...page,
+      models: SEO_VEHICLES
+        .filter((vehicle) => vehicle.makeSlug === makeSlug && !vehicle.noIndex)
+        .slice(0, 3),
+    };
+  })
+  .filter(Boolean);
 
 function RouteEffects() {
   const { pathname, hash } = useLocation();
@@ -510,9 +524,19 @@ function Header({ count, openCart }) {
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
             <summary>Find by car</summary>
             <div className="mega-panel vehicle-panel">
-              <section><small>SUZUKI</small><Link to="/vehicles/suzuki" onClick={closeNavigation}>All Suzuki models</Link><Link to="/vehicles/suzuki-alto" onClick={closeNavigation}>Alto</Link><Link to="/vehicles/suzuki-cultus" onClick={closeNavigation}>Cultus</Link><Link to="/vehicles/suzuki-wagon-r" onClick={closeNavigation}>Wagon R</Link></section>
-              <section><small>HONDA</small><Link to="/vehicles/honda" onClick={closeNavigation}>All Honda models</Link><Link to="/vehicles/honda-city" onClick={closeNavigation}>City</Link><Link to="/vehicles/honda-civic" onClick={closeNavigation}>Civic</Link><Link to="/vehicles/honda-br-v" onClick={closeNavigation}>BR-V</Link></section>
-              <section><small>TOYOTA</small><Link to="/vehicles/toyota" onClick={closeNavigation}>All Toyota models</Link><Link to="/vehicles/toyota-corolla" onClick={closeNavigation}>Corolla</Link><Link to="/vehicles/toyota-yaris" onClick={closeNavigation}>Yaris</Link><Link to="/vehicles/toyota-fortuner" onClick={closeNavigation}>Fortuner</Link></section>
+              {NAV_VEHICLE_MAKES.map((make) => (
+                <section key={make.makeSlug}>
+                  <small>{make.make.toUpperCase()}</small>
+                  <Link to={make.route} onClick={closeNavigation}>All {make.make} models</Link>
+                  {make.models.map((vehicle) => (
+                    <Link key={vehicle.slug} to={vehicle.path || `/vehicles/${vehicle.slug}`} onClick={closeNavigation}>{vehicle.model}</Link>
+                  ))}
+                </section>
+              ))}
+              <section className="vehicle-panel-all">
+                <small>ALL VEHICLES</small>
+                <Link to="/vehicles" onClick={closeNavigation}>Search every make and model</Link>
+              </section>
             </div>
           </details>
           <Link to="/rims" onClick={closeNavigation}>Rims</Link>
@@ -566,18 +590,23 @@ function Header({ count, openCart }) {
 
 function MobileNavigation({ count, openCart }) {
   const { pathname } = useLocation();
+  const homeActive = pathname === "/";
+  const tyreActive = ["/tyre-sizes", "/tyres", "/shop", "/product", "/vehicles", "/brands", "/rims"]
+    .some((prefix) => pathname.startsWith(prefix));
+  const blogActive = pathname.startsWith("/guides");
+  const quoteActive = pathname.startsWith("/quote");
   return (
     <nav className="mobile-bottom-nav" aria-label="Mobile quick navigation">
-      <Link className={pathname === "/" ? "active" : ""} to="/">
+      <Link className={homeActive ? "active" : ""} aria-current={homeActive ? "page" : undefined} to="/">
         <FaHome /><span>Home</span>
       </Link>
-      <Link className={pathname.startsWith("/tyre-sizes") || pathname.startsWith("/shop") || pathname.startsWith("/product") ? "active" : ""} to="/tyre-sizes">
+      <Link className={tyreActive ? "active" : ""} aria-current={tyreActive ? "page" : undefined} to="/tyre-sizes">
         <FaSearch /><span>Tyres</span>
       </Link>
-      <Link className={pathname.startsWith("/guides") ? "active" : ""} to="/guides">
+      <Link className={blogActive ? "active" : ""} aria-current={blogActive ? "page" : undefined} to="/guides">
         <FaBookOpen /><span>Blog</span>
       </Link>
-      <Link className={pathname === "/quote" ? "active" : ""} to="/quote">
+      <Link className={quoteActive ? "active" : ""} aria-current={quoteActive ? "page" : undefined} to="/quote">
         <FaPhoneAlt /><span>Get rate</span>
       </Link>
       <button type="button" onClick={openCart} aria-label={`Open saved selection, ${count} items`}>
@@ -3592,9 +3621,9 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
         <Route path="/brands" element={<RouteBrandsHub />} />
         <Route path="/brands/:slug" element={<RouteBrandLandingPage />} />
         <Route path="/vehicles" element={<RouteVehiclesHub />} />
-        <Route path="/vehicles/suzuki" element={<RouteVehicleMakePage makeSlug="suzuki" />} />
-        <Route path="/vehicles/toyota" element={<RouteVehicleMakePage makeSlug="toyota" />} />
-        <Route path="/vehicles/honda" element={<RouteVehicleMakePage makeSlug="honda" />} />
+        {Object.keys(VEHICLE_MAKE_PAGES).map((makeSlug) => (
+          <Route key={makeSlug} path={`/vehicles/${makeSlug}`} element={<RouteVehicleMakePage makeSlug={makeSlug} />} />
+        ))}
         <Route path="/vehicles/:slug" element={<RouteVehicleLandingPage />} />
         <Route path="/tyre-sizes" element={<RouteTyreSizesHub />} />
         <Route path="/tyre-sizes/:slug" element={<RouteSizeLandingPage />} />

@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   GUIDE_TOPICS,
   GUIDES,
+  SEO_VEHICLES,
   SEO_SIZES,
   TYRE_RIM_HUBS,
 } from "../src/Data/seoContent.js";
@@ -38,9 +39,16 @@ const hasSizeEvidence = (item) =>
   (item.catalogueReferences?.length || 0) > 0;
 const evidenceBackedSizes = SEO_SIZES.filter(hasSizeEvidence);
 const unsupportedSizes = SEO_SIZES.filter((item) => !hasSizeEvidence(item));
+const vehiclePathFor = (item) => item.path || `/vehicles/${item.slug}`;
+const indexableVehicles = SEO_VEHICLES.filter((item) => !item.noIndex);
+const researchVehicles = SEO_VEHICLES.filter((item) => item.noIndex);
+const indexableMakePages = Object.values(VEHICLE_MAKE_PAGES).filter((page) =>
+  indexableVehicles.some((vehicle) => vehicle.make === page.make),
+);
 const requiredHierarchyPaths = [
   TYRE_RATES_PAGE.route,
-  ...Object.values(VEHICLE_MAKE_PAGES).map((item) => item.route),
+  ...indexableMakePages.map((item) => item.route),
+  ...indexableVehicles.map(vehiclePathFor),
   "/privacy",
   ...evidenceBackedSizes.map(sizePathFor),
   ...TYRE_RIM_HUBS.filter((item) => !item.noIndex).map((item) => item.path),
@@ -50,6 +58,45 @@ const requiredHierarchyPaths = [
 const manifestSizePaths = new Set(TYRE_SIZE_MANIFEST.map((item) => item.path));
 const generatedSizePaths = new Set(SEO_SIZES.map(sizePathFor));
 const requiredRimDiameters = Array.from({ length: 13 }, (_, index) => index + 12);
+const manifestSizeCodes = new Set(TYRE_SIZE_MANIFEST.map((item) => item.size));
+
+assert(SEO_VEHICLES.length >= 100, "Pakistan vehicle directory contains too few model guides");
+assert(
+  new Set(SEO_VEHICLES.map((item) => item.slug)).size === SEO_VEHICLES.length,
+  "Duplicate vehicle slugs found",
+);
+assert(
+  new Set(Object.keys(VEHICLE_MAKE_PAGES)).size >= 25,
+  "Vehicle make directory contains too few manufacturer hubs",
+);
+Object.values(VEHICLE_MAKE_PAGES).forEach((page) => {
+  assert(
+    SEO_VEHICLES.some((vehicle) => vehicle.make === page.make),
+    `Vehicle make hub has no model guides: ${page.route}`,
+  );
+});
+SEO_VEHICLES.forEach((vehicle) => {
+  assert(Boolean(VEHICLE_MAKE_PAGES[vehicle.makeSlug]), `Missing make hub for ${vehicle.slug}`);
+  assert(Boolean(vehicle.summary && vehicle.summary.length >= 100), `Vehicle summary is too thin: ${vehicle.slug}`);
+  if (!vehicle.noIndex) {
+    assert((vehicle.sources?.length || 0) > 0, `New indexable vehicle lacks source evidence: ${vehicle.slug}`);
+  }
+  vehicle.sources.forEach((source) => {
+    assert(/^https:\/\//.test(source.url || ""), `Vehicle source must use HTTPS: ${vehicle.slug}`);
+  });
+  vehicle.commonSizes.forEach((fitment) => {
+    const match = fitment.size.match(/^(\d{3})\s*\/\s*(\d{2})\s*R\s*(\d{2})$/i);
+    if (!match) {
+      assert(
+        /^\d{3}(?:\/\d{2})?\s*R\d{2}(?:C|LT)?(?:\s+\d{2,3}\/\d{2,3}[A-Z])?$/i.test(fitment.size),
+        `Vehicle fitment is neither a standard nor supported specialist tyre code: ${vehicle.slug} -> ${fitment.size}`,
+      );
+      return;
+    }
+    const normalized = `${match[1]}/${match[2]} R${match[3]}`;
+    assert(manifestSizeCodes.has(normalized), `Vehicle size is absent from manifest: ${vehicle.slug} -> ${fitment.size}`);
+  });
+});
 
 assert(locations.length >= 50, "The sitemap contains too few indexable pages");
 assert(new Set(locations).size === locations.length, "Duplicate sitemap URLs found");
@@ -96,6 +143,7 @@ assert(/Sitemap:\s*https?:\/\/[^\s]+\/sitemap\.xml/i.test(robots), "robots.txt i
 const seenTitles = new Map();
 const seenCanonicals = new Map();
 const inboundLinks = new Map();
+const internalLinkSources = new Map();
 const contentFingerprints = new Map();
 
 const internalPageLinks = (html) => {
@@ -168,6 +216,8 @@ for (const location of locations) {
     const normalized = href.length > 1 ? href.replace(/\/$/, "") : href;
     if (!inboundLinks.has(normalized)) inboundLinks.set(normalized, new Set());
     inboundLinks.get(normalized).add(url.pathname);
+    if (!internalLinkSources.has(normalized)) internalLinkSources.set(normalized, new Set());
+    internalLinkSources.get(normalized).add(url.pathname);
   });
   assert(
     internalLinks.size >= 5,
@@ -241,6 +291,21 @@ for (const location of locations) {
   }
 }
 
+for (const [route, sources] of internalLinkSources) {
+  const relative = decodeURIComponent(route).replace(/^\/+|\/+$/g, "");
+  const candidates = route === "/"
+    ? [path.join(dist, "index.html")]
+    : [path.join(dist, relative, "index.html"), path.join(dist, `${relative}.html`)];
+  const hasStaticTarget = (await Promise.all(candidates.map(exists))).some(Boolean);
+  const hasProductFallback =
+    /^\/product\/[a-z0-9-]{2,120}$/i.test(route) &&
+    (await exists(path.join(dist, "product-fallback.html")));
+  assert(
+    hasStaticTarget || hasProductFallback,
+    `Broken internal link ${route} from ${[...sources].slice(0, 3).join(", ")}`,
+  );
+}
+
 requiredHierarchyPaths.forEach((requiredPath) => {
   assert(
     (inboundLinks.get(requiredPath)?.size || 0) > 0,
@@ -264,6 +329,29 @@ for (const item of SEO_SIZES) {
   }
 }
 
+for (const vehicle of SEO_VEHICLES) {
+  const route = vehiclePathFor(vehicle);
+  const relative = route.replace(/^\/+|\/+$/g, "");
+  const file = path.join(dist, relative, "index.html");
+  assert(await exists(file), `Missing accessible vehicle page: ${route}`);
+  if (!(await exists(file))) continue;
+  const html = await read(file);
+  const isNoIndex = /<meta name="robots" content="[^"]*noindex/i.test(html);
+  assert(isNoIndex === Boolean(vehicle.noIndex), `Vehicle indexability mismatch: ${route}`);
+  assert(
+    vehicle.noIndex ? !sitemapPaths.has(route) : sitemapPaths.has(route),
+    vehicle.noIndex
+      ? `Research-only vehicle leaked into sitemap: ${route}`
+      : `Indexable vehicle missing from sitemap: ${route}`,
+  );
+}
+
+for (const page of Object.values(VEHICLE_MAKE_PAGES)) {
+  const relative = page.route.replace(/^\/+|\/+$/g, "");
+  const file = path.join(dist, relative, "index.html");
+  assert(await exists(file), `Missing accessible vehicle make page: ${page.route}`);
+}
+
 for (const relative of ["404.html", "product-fallback.html", "admin/index.html", "quote/index.html"]) {
   const file = path.join(dist, relative);
   assert(await exists(file), `Missing utility page: ${relative}`);
@@ -278,6 +366,6 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    `Validated ${locations.length} unique indexable routes (${evidenceBackedSizes.length} evidence-backed exact sizes) and ${unsupportedSizes.length} accessible noindex size routes.`,
+    `Validated ${locations.length} unique indexable routes, ${SEO_VEHICLES.length} vehicle guides (${researchVehicles.length} research-only), ${evidenceBackedSizes.length} evidence-backed exact sizes and ${unsupportedSizes.length} accessible noindex size routes.`,
   );
 }

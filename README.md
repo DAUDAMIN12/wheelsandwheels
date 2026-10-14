@@ -99,7 +99,9 @@ After deployment, submit one clearly labelled test RFQ with an email address and
 ## Main routes
 
 - `/shop`, `/tyres`, `/tyre-sizes/:size`, `/brands/:brand`
-- `/vehicles/:vehicle`, `/product/:slug`
+- `/vehicles` (searchable Pakistan vehicle directory)
+- `/vehicles/:make` (manufacturer hubs) and `/vehicles/:make-model` (model fitment guides)
+- `/product/:slug`
 - `/quote`, `/services`, `/guides`, `/about`, `/contact`, `/faq`
 - `/lahore-tyre-shop`
 - `/admin` (private, no-index)

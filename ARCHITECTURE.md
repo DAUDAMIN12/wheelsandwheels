@@ -41,6 +41,8 @@ MongoDB is the source of truth. Email alerts can fail or be delayed, so the admi
 /tyres                       tyre discovery hub
 /tyre-sizes/:size            exact-size intent pages
 /brands/:brand               tyre brand pages
+/vehicles                    searchable Pakistan make/model directory
+/vehicles/:make              manufacturer hubs
 /vehicles/:make-model        vehicle discovery pages
 /product/:slug               product detail pages
 /services/:service           service detail pages
@@ -52,6 +54,8 @@ MongoDB is the source of truth. Email alerts can fail or be delayed, so the admi
 The production build pre-renders indexable routes with unique titles, descriptions, canonicals, visible HTML, structured data, and internal links. `sitemap.xml` contains only indexable canonical pages. Admin, quote utility pages, unknown products, and 404 pages are no-index.
 
 Vehicle and tyre-size pages are discovery aids, not fitment guarantees. The team verifies the complete tyre marking, load/speed rating, wheel specification, and vehicle requirements before confirming a sale.
+
+The vehicle registry separates manufacturer-supported fitments from research-only references. Verified model pages and exact sizes may enter the sitemap; imported, legacy, or incomplete references remain clickable for customers but carry `noindex` until source evidence is reviewed. Each model guide records the year/variant context, fitment warning, source and review date where available.
 
 ## Repository
 

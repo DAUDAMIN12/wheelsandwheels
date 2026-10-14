@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaCar,
@@ -99,6 +99,228 @@ function DiscoverySection({ id, eyebrow, title, intro, items, type, allHref, all
           <DiscoveryCard key={item.slug || item.name || item.title || item.size} item={item} type={type} />
         ))}
       </div>
+    </section>
+  );
+}
+
+function vehicleLabel(vehicle) {
+  return (
+    vehicle.name ||
+    [vehicle.make, vehicle.model].filter(Boolean).join(" ") ||
+    vehicle.title ||
+    "Vehicle fitment guide"
+  );
+}
+
+function vehicleSizes(vehicle) {
+  return (vehicle.commonSizes || [])
+    .map((entry) => ({
+      label: typeof entry === "string" ? entry : entry?.size,
+      path: typeof entry === "object" ? entry?.path || entry?.href : "",
+    }))
+    .filter((entry) => entry.label);
+}
+
+function sizePath(entry) {
+  if (entry.path) return entry.path;
+  return /^\d{3}\s*\/\s*\d{2}\s*r\s*\d{2}$/i.test(entry.label)
+    ? `/tyre-sizes/${slugify(entry.label)}`
+    : "";
+}
+
+function makeDirectoryPath(makeSlug) {
+  return `/vehicles/${makeSlug}`;
+}
+
+function VehicleDirectory({ vehicles }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const groupedVehicles = useMemo(() => {
+    const groups = new Map();
+    vehicles.forEach((vehicle) => {
+      const make = String(vehicle.make || "Other vehicles").trim();
+      const current = groups.get(make) || [];
+      current.push(vehicle);
+      groups.set(make, current);
+    });
+    return [...groups.entries()]
+      .map(([make, models]) => ({
+        make,
+        makeSlug: slugify(make),
+        models: [...models].sort((a, b) =>
+          vehicleLabel(a).localeCompare(vehicleLabel(b), "en"),
+        ),
+      }))
+      .sort((a, b) => a.make.localeCompare(b.make, "en"));
+  }, [vehicles]);
+
+  const visibleGroups = useMemo(() => {
+    if (!normalizedQuery) return groupedVehicles;
+    return groupedVehicles
+      .map((group) => {
+        const makeMatches = group.make.toLowerCase().includes(normalizedQuery);
+        const models = makeMatches
+          ? group.models
+          : group.models.filter((vehicle) => {
+              const searchableText = [
+                vehicleLabel(vehicle),
+                vehicle.model,
+                vehicle.yearScope,
+                vehicle.summary,
+                ...vehicleSizes(vehicle).map((size) => size.label),
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+              return searchableText.includes(normalizedQuery);
+            });
+        return { ...group, models };
+      })
+      .filter((group) => group.models.length);
+  }, [groupedVehicles, normalizedQuery]);
+
+  const visibleModelCount = visibleGroups.reduce(
+    (total, group) => total + group.models.length,
+    0,
+  );
+
+  return (
+    <section className="vehicle-directory section" aria-labelledby="vehicle-directory-title">
+      <div className="section-heading vehicle-directory-heading">
+        <div>
+          <p className="eyebrow">PAKISTAN VEHICLE DIRECTORY</p>
+          <h2 id="vehicle-directory-title">Choose your car make and model</h2>
+          <p>
+            Search by make, model or complete tyre size. Every size shown is a
+            reference only; confirm the year, variant, placard and current
+            sidewall before buying.
+          </p>
+        </div>
+        <span className="vehicle-directory-total">
+          <strong>{vehicles.length}</strong> model guides
+        </span>
+      </div>
+
+      <div className="vehicle-directory-tools">
+        <div className="vehicle-directory-search">
+          <label htmlFor="vehicle-directory-search"><FaSearch aria-hidden="true" /> Search vehicles or tyre sizes</label>
+          <div>
+            <input
+              id="vehicle-directory-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="e.g. Toyota Corolla or 195/65 R15"
+              autoComplete="off"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")}>
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        <nav className="vehicle-make-index" aria-label="Jump to a vehicle make">
+          {groupedVehicles.map((group) => (
+            <a
+              key={group.makeSlug}
+              href={`#vehicle-make-${group.makeSlug}`}
+              onClick={() => setQuery("")}
+            >
+              {group.make} <span>{group.models.length}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      <p className="vehicle-directory-status" role="status" aria-live="polite">
+        Showing {visibleModelCount} model{visibleModelCount === 1 ? "" : "s"} across{" "}
+        {visibleGroups.length} make{visibleGroups.length === 1 ? "" : "s"}
+        {normalizedQuery ? ` for “${query.trim()}”` : ""}.
+      </p>
+
+      {visibleGroups.length ? (
+        <div className="vehicle-make-groups">
+          {visibleGroups.map((group) => (
+            <section
+              className="vehicle-make-group"
+              id={`vehicle-make-${group.makeSlug}`}
+              key={group.makeSlug}
+              aria-labelledby={`vehicle-make-${group.makeSlug}-title`}
+            >
+              <header>
+                <div>
+                  <p className="eyebrow">{group.models.length} MODEL GUIDE{group.models.length === 1 ? "" : "S"}</p>
+                  <h3 id={`vehicle-make-${group.makeSlug}-title`}>
+                    <Link to={makeDirectoryPath(group.makeSlug)}>
+                      {group.make} tyres
+                    </Link>
+                  </h3>
+                </div>
+                <Link
+                  className="vehicle-make-link"
+                  to={makeDirectoryPath(group.makeSlug)}
+                  aria-label={`View ${group.make} models in this directory`}
+                >
+                  View make <FaChevronRight aria-hidden="true" />
+                </Link>
+              </header>
+
+              <div className="vehicle-model-grid">
+                {group.models.map((vehicle) => {
+                  const modelPath = linkPath(vehicle, "vehicle");
+                  const sizes = vehicleSizes(vehicle);
+                  return (
+                    <article className="vehicle-model-card" key={vehicle.slug || vehicleLabel(vehicle)}>
+                      <div className="vehicle-model-card-head">
+                        <FaCar aria-hidden="true" />
+                        <p>{vehicle.yearScope || "Year and variant verification required"}</p>
+                      </div>
+                      <h4><Link to={modelPath}>{vehicleLabel(vehicle)}</Link></h4>
+                      <p>{summaryText(vehicle, "vehicle")}</p>
+                      {!!sizes.length && (
+                        <div className="vehicle-model-sizes" aria-label={`Reference tyre sizes for ${vehicleLabel(vehicle)}`}>
+                          {sizes.map((size) => (
+                            sizePath(size) ? (
+                              <Link
+                                key={`${vehicle.slug || vehicleLabel(vehicle)}-${size.label}`}
+                                to={sizePath(size)}
+                                aria-label={`Open ${size.label} tyre-size guide`}
+                              >
+                                {size.label}
+                              </Link>
+                            ) : (
+                              <Link
+                                key={`${vehicle.slug || vehicleLabel(vehicle)}-${size.label}`}
+                                className="specialist-size-link"
+                                to={`/quote?tyreSize=${encodeURIComponent(size.label)}&message=${encodeURIComponent(`Please verify and quote ${size.label} for my ${vehicleLabel(vehicle)}.`)}`}
+                                aria-label={`Ask us to verify ${size.label} for ${vehicleLabel(vehicle)}`}
+                              >
+                                {size.label}
+                              </Link>
+                            )
+                          ))}
+                        </div>
+                      )}
+                      <Link className="guide-read-link" to={modelPath}>
+                        Open model fitment guide <FaChevronRight aria-hidden="true" />
+                      </Link>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="vehicle-directory-empty">
+          <FaSearch aria-hidden="true" />
+          <h3>No matching vehicle guide yet</h3>
+          <p>Try another model or tyre size, or send the exact car details to our team.</p>
+          <button type="button" onClick={() => setQuery("")}>Show every vehicle</button>
+        </div>
+      )}
     </section>
   );
 }
@@ -366,18 +588,20 @@ export default function DiscoveryHub({ focus = "all" }) {
         />
       )}
 
-      {(focus === "all" || focus === "vehicle") && (
+      {focus === "all" && (
         <DiscoverySection
           id="discover-vehicles"
           eyebrow="START WITH YOUR CAR"
           title="Find tyres by vehicle"
           intro="Common sizes are a starting point only. Always verify the model year, variant and existing sidewall size."
-          items={focus === "vehicle" ? vehicles : vehicles.slice(0, 8)}
+          items={vehicles.slice(0, 8)}
           type="vehicle"
-          allHref={focus === "all" ? "/vehicles" : undefined}
+          allHref="/vehicles"
           allLabel="View all vehicles"
         />
       )}
+
+      {focus === "vehicle" && <VehicleDirectory vehicles={vehicles} />}
 
       {focus === "size" && <TyreSizeDirectory hubs={rimHubs} />}
 

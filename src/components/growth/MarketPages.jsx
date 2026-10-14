@@ -242,13 +242,15 @@ export function VehicleMakePage({ makeSlug: makeSlugProp }) {
   if (!page) return null;
 
   const vehicles = SEO_VEHICLES.filter((vehicle) => vehicle.make === page.make);
+  const indexableVehicles = vehicles.filter((vehicle) => !vehicle.noIndex);
+  const makeNoIndex = indexableVehicles.length === 0;
   const sizeMap = new Map(SEO_SIZES.map((size) => [size.size, size]));
   const makeSizes = [...new Set(vehicles.flatMap((vehicle) => vehicle.commonSizes.map((entry) => entry.size)))]
     .map((size) => sizeMap.get(size))
     .filter(Boolean);
   const faq = [
     {
-      question: `Can every ${page.make} ${vehicles[0]?.model || "model"} use the same tyre size?`,
+      question: `Can every ${page.make} model use the same tyre size?`,
       answer: `No. ${page.make} sizes can change by generation, year, variant, import specification and wheel package. Check the placard, owner's manual and current sidewall before purchase.`,
     },
     {
@@ -265,11 +267,11 @@ export function VehicleMakePage({ makeSlug: makeSlugProp }) {
     "@type": "ItemList",
     "@id": `${siteUrl()}${page.route}#models`,
     name: `${page.make} vehicle tyre guides`,
-    itemListElement: vehicles.map((vehicle, index) => ({
+    itemListElement: indexableVehicles.map((vehicle, index) => ({
       "@type": "ListItem",
       position: index + 1,
       name: vehicle.name,
-      url: `${siteUrl()}/vehicles/${vehicle.slug}`,
+      url: `${siteUrl()}${vehicle.path || `/vehicles/${vehicle.slug}`}`,
     })),
   };
   const leadMessage = `Hi Wheels & Wheels, please help me find tyres for my ${page.make}. Model, year, variant and current tyre size: `;
@@ -280,13 +282,14 @@ export function VehicleMakePage({ makeSlug: makeSlugProp }) {
         title={page.title}
         description={page.metaDescription}
         canonical={page.route}
+        noIndex={makeNoIndex}
         breadcrumbs={[
           { name: "Home", path: "/" },
           { name: "Vehicles", path: "/vehicles" },
           { name: page.make, path: page.route },
         ]}
         faq={faq}
-        schemas={[itemList]}
+        schemas={indexableVehicles.length ? [itemList] : []}
       />
       <Breadcrumbs current={`${page.make} tyre guides`} parent={{ name: "Vehicles", path: "/vehicles" }} />
 
@@ -317,13 +320,36 @@ export function VehicleMakePage({ makeSlug: makeSlugProp }) {
         </div>
         <div className="make-model-grid">
           {vehicles.map((vehicle) => (
-            <article key={vehicle.slug}>
+            <article key={vehicle.slug} className={vehicle.noIndex ? "is-research-reference" : ""}>
               <FaCar aria-hidden="true" />
-              <p className="eyebrow">VEHICLE FITMENT GUIDE</p>
-              <h3><Link to={`/vehicles/${vehicle.slug}`}>{vehicle.name}</Link></h3>
+              <p className="eyebrow">{vehicle.noIndex ? "RESEARCH REFERENCE" : "VEHICLE FITMENT GUIDE"}</p>
+              <h3><Link to={vehicle.path || `/vehicles/${vehicle.slug}`}>{vehicle.name}</Link></h3>
               <p>{vehicle.summary}</p>
-              <div>{vehicle.commonSizes.map((entry) => <span key={entry.size}>{entry.size}</span>)}</div>
-              <Link className="guide-read-link" to={`/vehicles/${vehicle.slug}`}>Open model guide <FaChevronRight aria-hidden="true" /></Link>
+              <div>
+                {vehicle.commonSizes.length ? vehicle.commonSizes.map((entry) => {
+                  const match = entry.size.match(/^(\d{3})\s*\/\s*(\d{2})\s*R\s*(\d{2})$/i);
+                  return match ? (
+                    <Link key={`${entry.size}-${entry.context}`} to={`/tyre-sizes/${match[1]}-${match[2]}-r${match[3]}`}>{entry.size}</Link>
+                  ) : (
+                    <Link
+                      key={`${entry.size}-${entry.context}`}
+                      className="specialist-size-link"
+                      to={`/quote?tyreSize=${encodeURIComponent(entry.size)}&message=${encodeURIComponent(`Please verify and quote the specialist tyre size ${entry.size} for my ${vehicle.name}.`)}`}
+                      aria-label={`Request fitment verification for ${entry.size} on ${vehicle.name}`}
+                    >
+                      {entry.size}
+                    </Link>
+                  );
+                }) : (
+                  <Link
+                    className="specialist-size-link"
+                    to={`/quote?message=${encodeURIComponent(`Please help verify the exact tyre size for my ${vehicle.name}.`)}`}
+                  >
+                    Check placard and ask us
+                  </Link>
+                )}
+              </div>
+              <Link className="guide-read-link" to={vehicle.path || `/vehicles/${vehicle.slug}`}>Open model guide <FaChevronRight aria-hidden="true" /></Link>
             </article>
           ))}
         </div>

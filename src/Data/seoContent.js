@@ -1,5 +1,6 @@
 import PRODUCTS from "./productsData.js";
 import { TYRE_SIZE_MANIFEST } from "./tyreSizeManifest.js";
+import { ADDITIONAL_PAKISTAN_VEHICLES } from "./vehicleFitments.js";
 
 export const SEO_CONTENT_UPDATED = "2026-10-04";
 
@@ -203,12 +204,32 @@ const makeVehicle = ({
   slug,
   make,
   model,
+  makeSlug: makeSlugInput,
+  modelSlug: modelSlugInput,
+  bodyStyle,
+  market,
   yearScope,
   summary,
   commonSizes,
   buyingAdvice,
-}) => ({
+  sources = [],
+  reviewedAt = SEO_CONTENT_UPDATED,
+  searchIndex,
+  aliases = [],
+}) => {
+  const makeSlug = makeSlugInput || String(make).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const modelSlug = modelSlugInput || String(model).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const path = `/vehicles/${slug}`;
+  const publishedSizes = [...new Set(commonSizes.map((item) => item.size))];
+  const scopeCopy = yearScope || market || "The exact generation, model year and factory wheel package must be identified";
+  const sizeCopy = publishedSizes.length
+    ? `The references published here are ${publishedSizes.join(", ")}; each one applies only to the context shown in its fitment card.`
+    : "No complete local tyre profile is published on this page yet, so a placard or sidewall photo is required.";
+  return ({
   slug,
+  path,
+  makeSlug,
+  modelSlug,
   make,
   model,
   name: `${make} ${model}`,
@@ -218,23 +239,76 @@ const makeVehicle = ({
   heroTitle: `Find tyres for ${make} ${model}`,
   yearScope,
   summary,
+  bodyStyle,
+  market,
+  aliases,
+  sources,
+  reviewedAt,
+  updatedAt: reviewedAt,
+  noIndex: searchIndex === false,
   verificationRequired: true,
   verificationNote: FITMENT_NOTICE,
-  commonSizes: commonSizes.map(({ size, context }) => ({
+  commonSizes: commonSizes.map(({ size, context, years, variants, sourceLabel, note, status = "verify" }) => ({
     size,
     context,
-    status: "verify",
-    note: "Reference only. Verify against the exact vehicle placard, manual and fitted wheel before purchase.",
+    years,
+    variants,
+    sourceLabel,
+    status,
+    note: note || "Reference only. Verify against the exact vehicle placard, manual and fitted wheel before purchase.",
   })),
   buyingAdvice,
+  sections: [
+    {
+      eyebrow: "MODEL-SPECIFIC CHECK",
+      heading: `How to identify the correct ${make} ${model} fitment`,
+      paragraphs: [
+        `This ${bodyStyle ? `${bodyStyle.toLowerCase()} ` : ""}guide covers this scope: ${scopeCopy}. ${sizeCopy}`,
+        `${make} ${model} tyre sizes may differ across generations, variants and factory wheel packages. Use the visible reference table to narrow the search, then compare it with the placard, owner manual and complete code on the current tyre.`,
+        `Tell Wheels & Wheels whether the car is a local Pakistan-market vehicle or an import and whether its wheels or suspension have been changed. That context prevents a visually similar but incorrect size from being quoted.`,
+      ],
+    },
+    {
+      eyebrow: "BEFORE SUPPLY",
+      heading: `What we verify for a ${make} ${model}`,
+      bullets: [
+        "Complete width, aspect ratio and rim diameter",
+        "Load index, speed symbol and tyre construction",
+        "Wheel diameter, width, clearance and any front/rear difference",
+        "Current brand, pattern, manufacturing details, stock and rate",
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: `What tyre size fits a ${make} ${model}?`,
+      answer: `The answer depends on the ${make} ${model} model year, variant and wheel package. The listed sizes are references for the stated scope; verify the exact car's placard, manual and current sidewall before purchase.`,
+    },
+    {
+      question: `Can I use a wider tyre on a ${make} ${model}?`,
+      answer: "Not from width alone. Overall diameter, wheel width, offset, steering and suspension clearance, load rating and manufacturer guidance must all be checked before changing size.",
+    },
+    {
+      question: `How do I get the current ${make} ${model} tyre rate?`,
+      answer: "Send the model year, exact variant, full tyre size, required quantity and a clear sidewall or placard photo. The team will reply with current options rather than a stale website price.",
+    },
+  ],
   relatedLinks: [
+    { label: `All ${make} tyre guides`, href: `/vehicles/${makeSlug}` },
     { label: "Browse all tyre sizes", href: "/tyre-sizes" },
     { label: "Compare tyre brands", href: "/brands" },
     { label: "Request fitment confirmation", href: "/quote" },
   ],
-});
+  breadcrumbs: [
+    { name: "Home", path: "/" },
+    { name: "Vehicles", path: "/vehicles" },
+    { name: make, path: `/vehicles/${makeSlug}` },
+    { name: `${make} ${model}`, path },
+  ],
+  });
+};
 
-export const SEO_VEHICLES = [
+const CORE_SEO_VEHICLES = [
   makeVehicle({
     slug: "suzuki-alto",
     make: "Suzuki",
@@ -276,6 +350,7 @@ export const SEO_VEHICLES = [
       { size: "155/65 R14", context: "Reference for selected imported or changed-wheel examples" },
     ],
     buyingAdvice: ["Avoid assuming an imported car matches the local model", "Consider steering weight and clearance before increasing width"],
+    searchIndex: false,
   }),
   makeVehicle({
     slug: "suzuki-swift",
@@ -303,6 +378,7 @@ export const SEO_VEHICLES = [
       { size: "155/70 R12", context: "Commonly considered wider replacement; verify wheel and clearance" },
     ],
     buyingAdvice: ["Inspect older rims and valves during fitting", "Do not trade steering clearance for width without a physical check"],
+    searchIndex: false,
   }),
   makeVehicle({
     slug: "toyota-corolla",
@@ -385,6 +461,7 @@ export const SEO_VEHICLES = [
       { size: "215/50 R17", context: "Reference for selected higher-trim wheel packages" },
     ],
     buyingAdvice: ["Check whether the car retains factory wheels", "Match speed and load ratings before comparing performance patterns"],
+    searchIndex: false,
   }),
   makeVehicle({
     slug: "honda-br-v",
@@ -398,6 +475,7 @@ export const SEO_VEHICLES = [
       { size: "205/55 R16", context: "Possible alternate on compatible wheels; requires full check" },
     ],
     buyingAdvice: ["Prioritize verified load capacity", "Check clearance with passengers and luggage in mind"],
+    searchIndex: false,
   }),
   makeVehicle({
     slug: "kia-sportage",
@@ -424,6 +502,7 @@ export const SEO_VEHICLES = [
       { size: "175/65 R14", context: "Possible alternate or market variation; verify before use" },
     ],
     buyingAdvice: ["Check the placard before moving to a wider tyre", "Consider city comfort and steering effort"],
+    searchIndex: false,
   }),
   makeVehicle({
     slug: "hyundai-tucson",
@@ -503,6 +582,7 @@ export const SEO_VEHICLES = [
       { size: "165/55 R15", context: "Reference for selected wheel packages; verify carefully" },
     ],
     buyingAdvice: ["Read the actual placard on the imported vehicle", "Check wheel width and body clearance before changing size"],
+    searchIndex: false,
   }),
   makeVehicle({
     slug: "haval-h6",
@@ -518,6 +598,29 @@ export const SEO_VEHICLES = [
     buyingAdvice: ["State the exact variant, including hybrid where relevant", "Match all four tyres to drivetrain and vehicle requirements"],
   }),
 ];
+
+const vehicleDirectory = new Map(
+  CORE_SEO_VEHICLES.map((item) => [item.slug, item]),
+);
+ADDITIONAL_PAKISTAN_VEHICLES.forEach((item) => {
+  vehicleDirectory.set(item.slug, makeVehicle(item));
+});
+
+export const SEO_VEHICLES = [...vehicleDirectory.values()]
+  .sort((a, b) => a.make.localeCompare(b.make) || a.model.localeCompare(b.model))
+  .map((vehicle, _index, vehicles) => ({
+    ...vehicle,
+    relatedLinks: [
+      ...vehicle.relatedLinks,
+      ...vehicles
+        .filter((candidate) => candidate.make === vehicle.make && candidate.slug !== vehicle.slug)
+        .slice(0, 4)
+        .map((candidate) => ({
+          label: `${candidate.name} tyre guide`,
+          href: candidate.path,
+        })),
+    ],
+  }));
 
 const SIZE_CHECKLIST = [
   "Verify the complete size on the placard or owner's manual",
@@ -729,6 +832,7 @@ const uniqueBy = (items, keyFor) => {
 
 const vehicleReferencesBySize = new Map();
 SEO_VEHICLES.forEach((vehicle) => {
+  if (vehicle.noIndex) return;
   vehicle.commonSizes.forEach((entry) => {
     const parsed = parseTyreSize(entry.size);
     if (!parsed) return;
@@ -736,8 +840,12 @@ SEO_VEHICLES.forEach((vehicle) => {
     current.push({
       name: vehicle.name,
       slug: vehicle.slug,
+      path: vehicle.path,
       context: entry.context,
       note: entry.note,
+      years: entry.years,
+      variants: entry.variants,
+      sources: vehicle.sources,
     });
     vehicleReferencesBySize.set(parsed.slug, current);
   });
@@ -828,7 +936,7 @@ export const SEO_SIZES = baseSizePages.map((item) => {
       { label: `Browse all ${item.rim}-inch tyre sizes`, href: `/tyre-sizes/${item.rim}-inch` },
       ...vehicleReferences.slice(0, 3).map((vehicle) => ({
         label: `Tyres for ${vehicle.name}`,
-        href: `/vehicles/${vehicle.slug}`,
+        href: vehicle.path || `/vehicles/${vehicle.slug}`,
       })),
       ...catalogueReferences.slice(0, 3).map((product) => ({
         label: `${product.name} ${item.size}`,

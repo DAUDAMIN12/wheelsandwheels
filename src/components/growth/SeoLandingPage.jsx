@@ -175,6 +175,263 @@ function RelatedLinks({ items, variant }) {
   );
 }
 
+function descriptorText(value) {
+  if (!value) return "";
+  if (Array.isArray(value)) {
+    return value.map(descriptorText).filter(Boolean).join(", ");
+  }
+  if (typeof value === "object") {
+    return value.label || value.name || value.title || value.value || "";
+  }
+  return String(value);
+}
+
+function parseTyreSize(value = "") {
+  const match = String(value).trim().match(/^(\d{3})\s*\/\s*(\d{2})\s*r\s*(\d{2})$/i);
+  if (!match) return null;
+  const [, width, profile, rim] = match;
+  return {
+    label: `${width}/${profile} R${rim}`,
+    slug: `${width}-${profile}-r${rim}`,
+  };
+}
+
+function relatedLinkDetails(item) {
+  const label = typeof item === "string" ? item : item?.label || item?.name || item?.title;
+  const href =
+    typeof item === "object" && (item?.path || item?.url || item?.href)
+      ? item.path || item.url || item.href
+      : `/vehicles/${slugify(label)}`;
+  return { href, label };
+}
+
+function isRelatedVehicleLink(item) {
+  if (typeof item === "string") return Boolean(item.trim());
+  const href = item?.path || item?.url || item?.href || "";
+  return href.startsWith("/vehicles/");
+}
+
+function normalizeVehicleFitments(content) {
+  const fitments = stringList(
+    content.commonSizes || content.fitments || content.tyreSizes,
+  );
+  return fitments.map((item, index) => {
+    const entry = typeof item === "string" ? { size: item } : item || {};
+    const rawSize = entry.size || entry.tyreSize || entry.fitment || entry.label || "";
+    return {
+      ...entry,
+      key: entry.id || entry.slug || `${rawSize}-${index}`,
+      rawSize,
+      parsedSize: parseTyreSize(rawSize),
+      context: descriptorText(
+        entry.context || entry.application || entry.description || entry.use,
+      ),
+      generation: descriptorText(entry.generation || entry.series || entry.shape),
+      years: descriptorText(
+        entry.yearRange || entry.modelYears || entry.years || entry.year,
+      ),
+      variants: descriptorText(
+        entry.variants || entry.variant || entry.trims || entry.trim,
+      ),
+      note: descriptorText(entry.note || entry.verificationNote),
+    };
+  });
+}
+
+function sourceTitle(source, index) {
+  if (typeof source === "string") return source;
+  return source?.title || source?.label || source?.name || `Fitment source ${index + 1}`;
+}
+
+function sourceHref(source) {
+  const candidate = typeof source === "string" ? source : source?.url || source?.href || "";
+  return /^(?:https?:\/\/|\/)/i.test(candidate) ? candidate : "";
+}
+
+function sourceMeta(source) {
+  if (!source || typeof source === "string") return "";
+  return [
+    source.publisher,
+    source.document,
+    source.page && `Page ${source.page}`,
+    source.accessedAt && `Accessed ${source.accessedAt}`,
+  ].filter(Boolean).join(" · ");
+}
+
+function VehicleRelatedModels({ items }) {
+  const links = stringList(items).map(relatedLinkDetails).filter((item) => item.href && item.label);
+  if (!links.length) return null;
+  return (
+    <section className="vehicle-related-models" aria-labelledby="vehicle-related-models-title">
+      <p className="eyebrow">RELATED VEHICLE GUIDES</p>
+      <h3 id="vehicle-related-models-title">Compare another model</h3>
+      <div className="vehicle-related-model-grid">
+        {links.map((item) => (
+          <Link key={item.href} to={item.href}>
+            <span>{item.label}</span>
+            <FaChevronRight aria-hidden="true" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function VehicleFitmentDirectory({ content, name, quoteUrl, relatedModels }) {
+  const fitments = normalizeVehicleFitments(content);
+  const sources = [
+    ...stringList(content.sources),
+    ...stringList(content.source),
+    ...fitments.flatMap((item) => [
+      ...stringList(item.sources),
+      ...stringList(item.source),
+    ]),
+  ].filter((source, index, items) => {
+    const identity = `${sourceHref(source)}|${sourceTitle(source, index)}`;
+    return items.findIndex(
+      (candidate, candidateIndex) =>
+        `${sourceHref(candidate)}|${sourceTitle(candidate, candidateIndex)}` === identity,
+    ) === index;
+  });
+  const reviewedAt =
+    content.reviewedAt ||
+    content.lastReviewedAt ||
+    content.lastReviewed ||
+    content.verifiedAt ||
+    content.updatedAt ||
+    "";
+
+  return (
+    <section className="vehicle-fitment-directory section" aria-labelledby="vehicle-fitment-title">
+      <div className="section-heading vehicle-fitment-heading">
+        <div>
+          <p className="eyebrow">MODEL-SPECIFIC SIZE REFERENCES</p>
+          <h2 id="vehicle-fitment-title">Tyre sizes listed for {name}</h2>
+        </div>
+        <p>
+          Start with the correct generation, model year and variant. Open an exact size guide,
+          then verify the vehicle placard, owner&apos;s manual and fitted wheel before purchase.
+        </p>
+      </div>
+
+      {fitments.length ? (
+        <div className="vehicle-fitment-grid" role="list" aria-label={`${name} tyre size references`}>
+          {fitments.map((fitment) => {
+            const sizeLabel = fitment.parsedSize?.label || fitment.rawSize || "Size to verify";
+            const years = fitment.years || descriptorText(content.yearScope);
+            return (
+              <article className="vehicle-fitment-card" role="listitem" key={fitment.key}>
+                <div className="vehicle-fitment-card-head">
+                  <p className="eyebrow">REFERENCE SIZE</p>
+                  <h3>
+                    {fitment.parsedSize ? (
+                      <Link
+                        to={`/tyre-sizes/${fitment.parsedSize.slug}`}
+                        aria-label={`Open the ${fitment.parsedSize.label} tyre size guide for ${name}`}
+                      >
+                        {fitment.parsedSize.label}
+                      </Link>
+                    ) : (
+                      <span>{sizeLabel}</span>
+                    )}
+                  </h3>
+                  <span className="vehicle-fitment-status">Verify on vehicle</span>
+                </div>
+
+                <dl className="vehicle-fitment-details">
+                  {fitment.context && (
+                    <div><dt>Context</dt><dd>{fitment.context}</dd></div>
+                  )}
+                  {fitment.generation && (
+                    <div><dt>Generation</dt><dd>{fitment.generation}</dd></div>
+                  )}
+                  {years && (
+                    <div><dt>Year / scope</dt><dd>{years}</dd></div>
+                  )}
+                  {fitment.variants && (
+                    <div><dt>Variant / trim</dt><dd>{fitment.variants}</dd></div>
+                  )}
+                </dl>
+
+                <p className="vehicle-fitment-card-note">
+                  {fitment.note ||
+                    "Reference only. Confirm the complete sidewall code, load and speed rating for the exact car."}
+                </p>
+
+                {fitment.parsedSize ? (
+                  <Link className="vehicle-fitment-size-link" to={`/tyre-sizes/${fitment.parsedSize.slug}`}>
+                    Open {fitment.parsedSize.label} guide <FaChevronRight aria-hidden="true" />
+                  </Link>
+                ) : (
+                  <Link className="vehicle-fitment-size-link" to={quoteUrl}>
+                    Ask us to verify this size <FaChevronRight aria-hidden="true" />
+                  </Link>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="growth-sourcing-panel vehicle-fitment-empty">
+          <div>
+            <strong>No exact size should be assumed</strong>
+            <p>Send the model year, variant and a sidewall or placard photo for a manual fitment check.</p>
+          </div>
+          <Link className="primary" to={quoteUrl}>Request fitment help</Link>
+        </div>
+      )}
+
+      <aside className="vehicle-fitment-warning" aria-label="Important vehicle fitment warning">
+        <FaCheck aria-hidden="true" />
+        <div>
+          <strong>Reference information is not automatic fitment approval.</strong>
+          <p>
+            Wheel package, import specification, model year, trim and previous modifications can
+            change the correct tyre. Never buy from the model name or rim diameter alone.
+          </p>
+        </div>
+      </aside>
+
+      {(sources.length > 0 || reviewedAt) && (
+        <aside className="vehicle-fitment-provenance" aria-labelledby="fitment-source-title">
+          <div>
+            <p className="eyebrow">SOURCE &amp; REVIEW DETAILS</p>
+            <h3 id="fitment-source-title">How this reference is maintained</h3>
+            {reviewedAt && (
+              <p className="vehicle-fitment-reviewed">
+                Last reviewed: <time dateTime={reviewedAt}>{reviewedAt}</time>
+              </p>
+            )}
+          </div>
+          {!!sources.length && (
+            <ul>
+              {sources.map((source, index) => {
+                const title = sourceTitle(source, index);
+                const href = sourceHref(source);
+                const meta = sourceMeta(source);
+                return (
+                  <li key={`${href || title}-${index}`}>
+                    {href ? (
+                      <a href={href} target={/^https?:\/\//i.test(href) ? "_blank" : undefined} rel={/^https?:\/\//i.test(href) ? "noreferrer" : undefined}>
+                        {title}
+                      </a>
+                    ) : (
+                      <span>{title}</span>
+                    )}
+                    {meta && <small>{meta}</small>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </aside>
+      )}
+
+      <VehicleRelatedModels items={relatedModels} />
+    </section>
+  );
+}
+
 function SizeEntityDirectory({ content, variant, name, quoteUrl }) {
   if (variant === "rim") {
     const sizes = stringList(content.sizes);
@@ -347,16 +604,14 @@ export default function SeoLandingPage({ variant = "brand", slug: slugProp, cont
               title: "Model scope",
               description: content.yearScope,
             },
-            ...(content.commonSizes || []).map((entry) =>
-              typeof entry === "string"
-                ? entry
-                : {
-                    title: entry.size,
-                    description:
-                      [entry.context, entry.note].filter(Boolean).join(" ") ||
-                      "Verify against the model year, variant and current tyre sidewall.",
-                  },
-            ),
+            content.market && {
+              title: "Market specification",
+              description: descriptorText(content.market),
+            },
+            content.bodyStyle && {
+              title: "Body style",
+              description: descriptorText(content.bodyStyle),
+            },
           ].filter(Boolean)
         : [
             content.width && {
@@ -377,12 +632,19 @@ export default function SeoLandingPage({ variant = "brand", slug: slugProp, cont
     content.highlights || content.quickFacts || content.benefits || variantHighlights,
   );
   const faq = normalizeFaq(content.faq || content.faqs);
-  const related =
+  const allRelated = stringList(
     content.relatedLinks ||
     content.related ||
     content.relatedPages ||
     content.relatedBrands ||
-    content.relatedSizes;
+    content.relatedSizes,
+  );
+  const relatedModels = variant === "vehicle"
+    ? allRelated.filter(isRelatedVehicleLink)
+    : [];
+  const related = variant === "vehicle"
+    ? allRelated.filter((item) => !isRelatedVehicleLink(item))
+    : allRelated;
   const leadSubject = content.leadSubject || `${name} tyre options`;
   const leadMessage =
     content.whatsappMessage ||
@@ -483,12 +745,21 @@ export default function SeoLandingPage({ variant = "brand", slug: slugProp, cont
         </section>
       )}
 
-      <SizeEntityDirectory
-        content={content}
-        variant={variant}
-        name={name}
-        quoteUrl={quoteUrl}
-      />
+      {variant === "vehicle" ? (
+        <VehicleFitmentDirectory
+          content={content}
+          name={name}
+          quoteUrl={quoteUrl}
+          relatedModels={relatedModels}
+        />
+      ) : (
+        <SizeEntityDirectory
+          content={content}
+          variant={variant}
+          name={name}
+          quoteUrl={quoteUrl}
+        />
+      )}
 
       <div className="growth-article-body section">
         {sections.map((section, index) => (

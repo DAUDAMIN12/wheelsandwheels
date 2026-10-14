@@ -194,7 +194,7 @@ const brandPages = SEO_BRANDS.map((item) => ({
 }));
 
 const vehiclePages = SEO_VEHICLES.map((item) => ({
-  route: `/vehicles/${item.slug}`,
+  route: item.path || `/vehicles/${item.slug}`,
   title: item.seoTitle || item.title,
   description: item.metaDescription || item.summary,
   h1: item.heroTitle || item.title,
@@ -209,9 +209,15 @@ const vehiclePages = SEO_VEHICLES.map((item) => ({
     },
   ],
   faqs: item.faqs || [],
+  noIndex: Boolean(item.noIndex),
+  excludeFromSitemap: Boolean(item.noIndex),
+  updatedAt: item.reviewedAt || item.updatedAt || SEO_CONTENT_UPDATED,
 }));
 
-const vehicleMakePages = Object.values(VEHICLE_MAKE_PAGES).map((item) => ({
+const vehicleMakePages = Object.values(VEHICLE_MAKE_PAGES).map((item) => {
+  const vehicles = SEO_VEHICLES.filter((vehicle) => vehicle.make === item.make);
+  const noIndex = !vehicles.some((vehicle) => !vehicle.noIndex);
+  return {
   route: item.route,
   title: item.title,
   description: item.metaDescription,
@@ -221,13 +227,16 @@ const vehicleMakePages = Object.values(VEHICLE_MAKE_PAGES).map((item) => ({
     { title: "Fitment checks", text: item.buyerFocus.join(" · ") },
     {
       title: `${item.make} model guides`,
-      text: SEO_VEHICLES.filter((vehicle) => vehicle.make === item.make)
+      text: vehicles
         .map((vehicle) => vehicle.name)
         .join(" · "),
     },
   ],
-  updatedAt: TYRE_RATES_PAGE.updatedAt,
-}));
+  noIndex,
+  excludeFromSitemap: noIndex,
+  updatedAt: SEO_CONTENT_UPDATED,
+  };
+});
 
 const sizePages = SEO_SIZES.map((item) => ({
   route: `/tyre-sizes/${item.slug}`,
