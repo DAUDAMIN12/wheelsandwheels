@@ -94,15 +94,19 @@ After deployment, submit one clearly labelled test RFQ with an email address and
 - Public catalogue responses use CDN caching and server-side request coalescing.
 - Protected routes use signed admin tokens, strict validation, security headers, query limits, and rate limits.
 - Vercel serves pre-rendered marketing pages and real no-index 404/fallback pages rather than a site-wide soft 404.
-- The local load test is useful for regression checks, but a claim of 5,000 simultaneous users requires a staged distributed load test against the production-like deployment. A shared rate limiter, CAPTCHA/WAF, and durable email queue are recommended before a high-volume campaign.
+- Before a commercial advertising campaign, move from Vercel Hobby and Atlas Free to production plans with backups and monitoring. The free tiers are suitable for launch testing, not a 5,000-concurrent-user guarantee.
+- For high RFQ volume, replace personal Gmail delivery with a transactional email provider and durable queue, and move abuse protection to a shared rate limiter plus CAPTCHA or WAF.
+- The local load test is useful for regression checks, but a claim of 5,000 simultaneous users requires a staged distributed load test against the production-like deployment.
 
 ## Main routes
 
 - `/shop`, `/tyres`, `/tyre-sizes/:size`, `/brands/:brand`
 - `/vehicles` (searchable Pakistan vehicle directory)
 - `/vehicles/:make` (manufacturer hubs) and `/vehicles/:make-model` (model fitment guides)
+- `/guides`, `/guides/topics/:slug`, and `/guides/:slug`
+- `/tools`, `/tools/tyre-size-calculator`, and `/tools/tyre-date-code-checker`
 - `/product/:slug`
-- `/quote`, `/services`, `/guides`, `/about`, `/contact`, `/faq`
+- `/quote`, `/services`, `/about`, `/contact`, `/faq`
 - `/lahore-tyre-shop`
 - `/admin` (private, no-index)
 

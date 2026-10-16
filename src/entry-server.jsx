@@ -9,6 +9,11 @@ import DiscoveryHub, {
 import GuidesHub from "./components/growth/GuidesHub.jsx";
 import GuideTopicPage from "./components/growth/GuideTopicPage.jsx";
 import GuideArticle from "./components/growth/GuideArticle.jsx";
+import {
+  ToolsHub,
+  TyreDateCodeChecker,
+  TyreSizeCalculator,
+} from "./components/growth/TyreTools.jsx";
 import CommercialLandingPage from "./components/growth/CommercialLandingPage.jsx";
 import {
   BrandLandingPage,
@@ -45,9 +50,12 @@ const routeComponents = {
   SizeLandingPage,
   TyreSizesHub,
   TyreRatesPage,
+  TyreDateCodeChecker,
+  TyreSizeCalculator,
   VehicleLandingPage,
   VehicleMakePage,
   VehiclesHub,
+  ToolsHub,
 };
 
 function findClosingDiv(html, contentStart) {

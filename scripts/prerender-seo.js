@@ -84,6 +84,47 @@ const staticPages = [
   { route: "/tyre-sizes", title: "Popular Tyre Sizes in Lahore", description: "Browse popular tyre sizes from 12 to 24 inches and request current brand options in Lahore.", h1: "Browse tyres by complete size", intro: "Use width, profile and rim diameter together for a useful tyre search." },
   { route: "/guides", title: "Tyre Blog and Guides for Pakistan Roads", description: "Practical tyre-size, safety, maintenance and alloy-rim articles for drivers in Lahore and Pakistan.", h1: "Tyre blog and practical guides", intro: "Clear, useful articles designed to help you ask better questions before buying." },
   {
+    route: "/tools",
+    title: "Free Tyre Tools for Pakistan",
+    description: "Use the Wheels & Wheels tyre size calculator and date-code checker, then request professional fitment and condition guidance in Lahore.",
+    h1: "Useful calculations. Human fitment checks.",
+    intro: "Compare nominal tyre dimensions or translate a production date code, then ask the Wheels & Wheels team to verify the physical vehicle and tyre.",
+    sections: [
+      { title: "Tyre size calculator", text: "Compare sidewall, diameter, circumference and indicated-speed change without treating the result as fitment approval." },
+      { title: "Tyre date-code checker", text: "Read the week and year from a modern four-digit production code without treating age as a complete condition test." },
+    ],
+  },
+  {
+    route: "/tools/tyre-size-calculator",
+    title: "Tyre Size Calculator for Pakistan",
+    description: "Compare two tyre sizes by sidewall, overall diameter, circumference and indicated-speed change, with clear fitment limits and Lahore expert support.",
+    h1: "Tyre size calculator for Pakistan",
+    intro: "Compare nominal dimensions first, then verify the wheel, ratings, clearances and exact vehicle before changing size.",
+    sections: [
+      { title: "What the calculator compares", text: "The tool calculates nominal sidewall height, overall diameter, circumference and the mathematical indicated-speed change between two tyre codes." },
+      { title: "Why a physical check remains necessary", text: "A percentage cannot approve wheel width, offset, load and speed ratings, brake clearance, steering and suspension clearance, vehicle systems or manufacturer permission." },
+    ],
+    faqs: [
+      { question: "Can a tyre-size calculator approve an alternate size?", answer: "No. It compares nominal dimensions only; the complete vehicle and wheel fitment still need to be checked." },
+      { question: "Does a small diameter difference guarantee fitment?", answer: "No. Wheel compatibility, clearance, ratings and manufacturer guidance still apply." },
+    ],
+  },
+  {
+    route: "/tools/tyre-date-code-checker",
+    title: "Tyre Date Code Checker for Pakistan",
+    description: "Read a modern four-digit tyre manufacturing date code, understand its week and year, and learn why tyre condition still needs physical inspection.",
+    h1: "Tyre date-code checker",
+    intro: "Translate the modern four-digit format, then inspect the exact tyre instead of treating age as the only condition test.",
+    sections: [
+      { title: "How to read the code", text: "The first two digits identify the production week and the last two identify the production year in the modern four-digit format." },
+      { title: "What the code cannot prove", text: "A date cannot grade storage, pressure history, internal condition, damage, repairs or suitability for service." },
+    ],
+    faqs: [
+      { question: "Does a date code prove that a tyre is safe?", answer: "No. Age is only one part of a complete inspection and manufacturer-guided replacement decision." },
+      { question: "Where is the full production code?", answer: "The complete identification may appear on only one sidewall, so both sides may need checking." },
+    ],
+  },
+  {
     route: "/about",
     title: "About Wheels & Wheels Lahore",
     description: "Learn how Wheels & Wheels helps Lahore customers enquire about tyres, alloy rims, installation, balancing and alignment through direct, current-rate support.",
@@ -391,6 +432,8 @@ const productPages = PRODUCTS.filter((item) => item.slug).map((item) => ({
     { title: "Tyre specification", text: `${item.brand} · ${item.size} · ${item.vehicle}. Verify load index, speed rating, manufacturing details and vehicle compatibility before purchase.` },
     { title: "Current rate and availability", text: "Market pricing and stock can change. Contact Wheels & Wheels for the current quotation and exact item details." },
   ],
+  noIndex: true,
+  excludeFromSitemap: true,
   schemas: [
     {
       "@context": "https://schema.org",
@@ -449,7 +492,7 @@ for (const page of pages) {
     )
     .replace(
       /<meta name="robots" content="[^"]*"\s*\/?>/i,
-      `<meta name="robots" content="${page.noIndex ? "noindex, nofollow, noarchive" : "index, follow, max-image-preview:large"}" />`,
+      `<meta name="robots" content="${page.noIndex ? "noindex, follow, noarchive" : "index, follow, max-image-preview:large"}" />`,
     )
     .replace(
       /<meta property="og:type" content="[^"]*"\s*\/?>/i,
@@ -501,7 +544,7 @@ for (const page of pages) {
     )
     .replace(
       "</head>",
-      `<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" />${page.article && page.publishedAt ? `<meta property="article:published_time" content="${page.publishedAt}" />` : ""}${page.article && page.updatedAt ? `<meta property="article:modified_time" content="${page.updatedAt}" />` : ""}</head>`,
+      `${page.route === "/" ? '<link rel="preload" as="image" href="/wheelpic.jpg" fetchpriority="high" />' : ""}<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" />${page.article && page.publishedAt ? `<meta property="article:published_time" content="${page.publishedAt}" />` : ""}${page.article && page.updatedAt ? `<meta property="article:modified_time" content="${page.updatedAt}" />` : ""}</head>`,
     )
     .replace('<div id="root"></div>', `<div id="root">${renderedContent}</div>`);
   const target = page.route === "/" ? dist : path.join(dist, page.route.slice(1));
@@ -541,32 +584,6 @@ const notFoundHtml = template
     `<div id="root">${notFoundContent}</div>`,
   );
 await writeFile(path.join(dist, "404.html"), notFoundHtml, "utf8");
-
-const productFallbackContent = await render("/product/__catalogue-lookup__", {
-  siteUrl,
-});
-const productFallbackHtml = template
-  .replace(
-    /<title>[\s\S]*?<\/title>/i,
-    "<title>Checking Product | Wheels &amp; Wheels</title>",
-  )
-  .replace(
-    /<meta name="description" content="[^"]*"\s*\/?>/i,
-    '<meta name="description" content="Checking the requested Wheels &amp; Wheels catalogue item." />',
-  )
-  .replace(
-    /<meta name="robots" content="[^"]*"\s*\/?>/i,
-    '<meta name="robots" content="noindex, follow" />',
-  )
-  .replace(
-    '<div id="root"></div>',
-    `<div id="root">${productFallbackContent}</div>`,
-  );
-await writeFile(
-  path.join(dist, "product-fallback.html"),
-  productFallbackHtml,
-  "utf8",
-);
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
   .filter((page) => !page.excludeFromSitemap)

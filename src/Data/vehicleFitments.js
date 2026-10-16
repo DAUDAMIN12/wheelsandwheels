@@ -185,14 +185,63 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
     buyingAdvice: ["Confirm cargo load and actual highway or off-road use before choosing the tread category"],
   }),
   vehicle({
+    make: "Toyota", model: "Hilux Single Cabin", bodyStyle: "Commercial pickup", market: "Current Pakistan-market single-cabin commercial model",
+    fitments: [reference("205/70 R15C", "Official current single-cabin commercial-tyre specification", {
+      years: "Current Pakistan model",
+      variants: "Hilux Single Cabin",
+      sourceLabel: "Toyota Pakistan official specification",
+      note: "Keep the C commercial construction and the complete placard load/speed marking; a passenger tyre with similar dimensions is not an automatic substitute.",
+    })],
+    sources: [official("Toyota Pakistan Hilux Single Cabin", "https://toyota-indus.com/hilux-single-cabin/")],
+    buyingAdvice: ["State expected cargo load and road use when requesting a commercial-tyre quotation"],
+  }),
+  vehicle({
+    make: "Toyota", model: "Hiace", bodyStyle: "Commercial van", market: "Current Pakistan-market standard- and high-roof configurations",
+    fitments: [reference("195 R15C", "Official current commercial-tyre specification; selected configurations specify 8PR tubeless", {
+      years: "Current Pakistan model",
+      variants: "Standard- and high-roof petrol/diesel configurations",
+      sourceLabel: "Toyota Pakistan official specification sheet",
+      note: "This is a commercial-tyre format. Preserve the C construction and confirm the 8PR/load marking printed on the vehicle placard before purchase.",
+    })],
+    sources: [official("Toyota Pakistan Hiace specification sheet", "https://toyota-indus.com/wp-content/uploads/2025/10/new-hiace-spec-sheet.pdf")],
+    buyingAdvice: ["Confirm passenger/cargo duty, axle load and the complete commercial load marking"],
+  }),
+  vehicle({
+    make: "Toyota", model: "Hiace Deluxe / Ace Luxury", bodyStyle: "Luxury wagon", market: "Current Pakistan-market Ace Luxury wagon",
+    fitments: [reference("235/60 R17LT 109T", "Official current light-truck tyre and load/speed specification", {
+      years: "Current Pakistan model",
+      variants: "Hiace Deluxe / Ace Luxury Wagon",
+      sourceLabel: "Toyota Pakistan official specification sheet",
+      note: "Match the LT construction plus 109T load/speed marking; do not substitute using diameter alone.",
+    })],
+    sources: [official("Toyota Pakistan Ace Luxury specification sheet", "https://toyota-indus.com/wp-content/uploads/2025/07/Ace-Luxury-Spec-Sheet-1.pdf")],
+    buyingAdvice: ["Keep tyre construction and load rating identical across the axle"],
+  }),
+  vehicle({
+    make: "Toyota", model: "Coaster", bodyStyle: "Commercial bus", market: "Current Pakistan-market Coaster configurations",
+    fitments: [reference("215/70 R17.5", "Official current commercial-bus tyre specification", {
+      years: "Current Pakistan model",
+      variants: "Coaster",
+      sourceLabel: "Toyota Pakistan official specification sheet",
+      note: "Use only the correct 17.5-inch commercial wheel/tyre specification and confirm the placard load index before purchase.",
+    })],
+    sources: [official("Toyota Pakistan Coaster specification sheet", "https://toyota-indus.com/wp-content/uploads/2025/08/Coaster-Spec-Sheet1.pdf")],
+    buyingAdvice: ["Confirm axle loads, passenger duty and commercial tyre load index before quotation"],
+  }),
+  vehicle({
     make: "Toyota", model: "Corolla Cross", bodyStyle: "Hybrid crossover",
     fitments: [reference("215/60 R17", "Reference for selected Pakistan-market Corolla Cross variants")],
     sources: [official("Toyota Corolla Cross Pakistan", "https://toyota-indus.com/corolla-cross/")],
   }),
   vehicle({
-    make: "Toyota", model: "Camry", bodyStyle: "Executive sedan", market: "Pakistan-market and imported generations",
-    fitments: [reference("215/55 R17", "Reference for selected Camry generations"), reference("235/45 R18", "Reference for selected higher wheel packages")],
-    searchIndex: false,
+    make: "Toyota", model: "Camry", bodyStyle: "Hybrid executive sedan", market: "Current Pakistan-market Camry Hybrid",
+    fitments: [reference("215/55 R17", "Official current Pakistan-market Camry Hybrid specification", {
+      years: "Current 2026 Pakistan model",
+      variants: "Camry Hybrid AXVH80R-AEXGBW",
+      sourceLabel: "Toyota Pakistan official brochure",
+      note: "The official current specification identifies Yokohama tyres. Confirm the complete sidewall load/speed marking on the delivered vehicle.",
+    })],
+    sources: [official("Toyota Pakistan Camry Hybrid brochure", "https://toyota-indus.com/wp-content/uploads/2026/04/Camry-Brochure-.pdf")],
   }),
   vehicle({
     make: "Toyota", model: "Prius", bodyStyle: "Hybrid hatchback", market: "Japanese and other imported generations",
@@ -225,15 +274,23 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
     searchIndex: false,
   }),
   vehicle({
-    make: "Toyota", model: "Land Cruiser", bodyStyle: "Full-size SUV", market: "Pakistan-market and imported generations",
-    fitments: [reference("285/60 R18", "Reference for selected Land Cruiser 300 wheel packages"), reference("265/55 R20", "Reference for selected larger factory wheel packages")],
-    searchIndex: false,
+    make: "Toyota", model: "Land Cruiser", bodyStyle: "Full-size SUV", market: "Current Pakistan-market Land Cruiser 300",
+    fitments: [reference("265/55 R20", "Official current Pakistan-market Land Cruiser 300 specification", {
+      years: "Current Pakistan model",
+      variants: "Land Cruiser 300",
+      sourceLabel: "Toyota Pakistan official specification sheet",
+    })],
+    sources: [official("Toyota Pakistan Land Cruiser 300 specification sheet", "https://toyota-indus.com/wp-content/uploads/2025/11/LC-300-Spec-Sheet.pdf")],
     buyingAdvice: ["Match tyre construction, load index and all four positions for the vehicle's weight and drivetrain"],
   }),
   vehicle({
-    make: "Toyota", model: "Prado", bodyStyle: "SUV", market: "Imported generations and trims",
-    fitments: [reference("265/65 R17", "Reference for selected Prado 150 configurations"), reference("265/60 R18", "Reference for selected larger wheel packages")],
-    searchIndex: false,
+    make: "Toyota", model: "Prado", bodyStyle: "SUV", market: "Current Pakistan-market Land Cruiser Prado 250",
+    fitments: [
+      reference("265/60 R20", "Official current specification for the diesel configuration", { years: "Current Prado 250", variants: "Diesel" }),
+      reference("245/70 R18", "Official current specification for the petrol configuration", { years: "Current Prado 250", variants: "Petrol" }),
+    ],
+    sources: [official("Toyota Pakistan Land Cruiser Prado brochure", "https://toyota-indus.com/wp-content/uploads/2024/05/Land-Cruiser-Brochure.pdf")],
+    buyingAdvice: ["State petrol or diesel variant and match all four tyres to the vehicle placard"],
   }),
 
   vehicle({
@@ -384,6 +441,17 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
     fitments: [reference("235/55 R18", "Official Pakistan-market Staria HGS 3.5 AT reference", { variants: "HGS 3.5 AT" })],
     sources: [official("Hyundai Pakistan Staria specification", "https://hyundai-nishat.com/wp-content/themes/hyundainishat/pdf/Staria.pdf")],
   }),
+  vehicle({
+    make: "Hyundai", model: "Porter H-100", bodyStyle: "Commercial pickup", market: "Current Pakistan-market light commercial vehicle",
+    fitments: [reference("205/70 R15C", "Official current Pakistan-market commercial-tyre specification", {
+      years: "Current Pakistan model",
+      variants: "Porter H-100",
+      sourceLabel: "Hyundai Pakistan official leaflet",
+      note: "Retain the C commercial construction and confirm the complete load/speed marking on the vehicle placard.",
+    })],
+    sources: [official("Hyundai Pakistan Porter H-100 leaflet", "https://hyundai-nishat.com/wp-content/uploads/2025/05/Porter-Leaflet-Mar-23.pdf")],
+    buyingAdvice: ["State payload and road use when requesting a commercial-tyre quotation"],
+  }),
 
   vehicle({
     make: "Changan", model: "Deepal S07", bodyStyle: "Electric crossover",
@@ -396,9 +464,24 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
     sources: [official("Deepal Pakistan L07", "https://deepal.com.pk/l7/")],
   }),
   vehicle({
-    make: "Changan", model: "Karvaan", bodyStyle: "Mini MPV",
-    fitments: [reference("175/70 R14", "Passenger-size reference for selected Karvaan examples; load specification needs checking")],
-    searchIndex: false,
+    make: "Changan", model: "Deepal S05 REEV", bodyStyle: "Range-extended electric crossover", market: "Current Pakistan-market REEV configuration",
+    fitments: [reference("225/60 R18", "Official current Pakistan-market Deepal S05 REEV specification", {
+      years: "Current Pakistan model",
+      variants: "S05 REEV",
+      sourceLabel: "Deepal Pakistan official brochure",
+    })],
+    sources: [official("Deepal Pakistan S05 brochure", "https://deepal.com.pk/upload/s05-brochure.pdf")],
+  }),
+  vehicle({
+    make: "Changan", model: "Karvaan", bodyStyle: "Mini MPV", market: "Current Pakistan-market commercial/passenger MPV",
+    fitments: [reference("165/70 R14LT", "Official current Pakistan-market light-truck tyre specification", {
+      years: "Current Pakistan model",
+      variants: "Karvaan",
+      sourceLabel: "Changan Pakistan official specification",
+      note: "The manufacturer publishes this as 165/70R/14LT. Keep the LT construction and verify the complete load marking on the vehicle placard.",
+    })],
+    sources: [official("Changan Pakistan Karvaan specification", "https://www.changan.com.pk/karvaan-mpv/")],
+    buyingAdvice: ["Do not replace the LT tyre with a passenger tyre solely because its dimensions look similar"],
   }),
   vehicle({
     make: "Changan", model: "M9 Sherpa", bodyStyle: "One-ton pickup", market: "Current Pakistan-market commercial vehicle",
@@ -409,9 +492,15 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
 
   vehicle({
     make: "MG", model: "ZS", bodyStyle: "Compact crossover", market: "Current Pakistan-market petrol and hybrid range",
-    fitments: [],
-    sources: [official("MG Pakistan current ZS range", "https://mgmotors.com.pk/model/mg-zs")],
-    searchIndex: false,
+    fitments: [
+      reference("215/55 R17", "Official current ZS range specification; confirm the exact petrol or Hybrid+ variant", { years: "Current Pakistan range", variants: "Variant mapping must be confirmed" }),
+      reference("215/50 R18", "Official current ZS range specification; confirm the exact Hybrid+ wheel package", { years: "Current Pakistan range", variants: "Variant mapping must be confirmed" }),
+    ],
+    sources: [
+      official("MG Pakistan ZS specification sheet", "https://mgmotors.com.pk/assets/brochure/mg-zs-spec-sheet.pdf"),
+      official("MG Pakistan current ZS range", "https://mgmotors.com.pk/model/mg-zs"),
+    ],
+    buyingAdvice: ["State Vibe, Hybrid+ Excite or Hybrid+ Essence and send the placard photo before quotation"],
   }),
   vehicle({
     make: "MG", model: "ZS EV", bodyStyle: "Electric compact crossover", market: "Earlier Pakistan-market electric model",
@@ -420,8 +509,24 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
   }),
   vehicle({
     make: "MG", model: "MG4", bodyStyle: "Electric hatchback",
-    fitments: [reference("215/50 R17", "Official reference for Excite 51"), reference("235/45 R18", "Official reference for Essence 64")],
-    sources: [official("MG Pakistan MG4 EV brochure", "https://mgmotors.com.pk/assets/brochure/Brochure-MG4-EV.pdf")],
+    fitments: [
+      reference("205/50 R17", "Official current reference for MG4 EV Urban", { variants: "Urban" }),
+      reference("215/50 R17", "Official reference for Excite 51", { variants: "Excite 51" }),
+      reference("235/45 R18", "Official reference for Essence 64", { variants: "Essence 64" }),
+    ],
+    sources: [
+      official("MG Pakistan MG4 EV Urban brochure", "https://mgmotors.com.pk/assets/brochure/MG4_EV_Urban_Brochure.pdf"),
+      official("MG Pakistan MG4 EV brochure", "https://mgmotors.com.pk/assets/brochure/Brochure-MG4-EV.pdf"),
+    ],
+  }),
+  vehicle({
+    make: "MG", model: "Binguo EV Pro", bodyStyle: "Electric city hatchback", market: "Current Pakistan-market Pro configuration",
+    fitments: [reference("185/60 R15", "Official current Pakistan-market specification", {
+      years: "Current Pakistan model",
+      variants: "Binguo EV Pro",
+      sourceLabel: "MG Pakistan official brochure",
+    })],
+    sources: [official("MG Pakistan Binguo EV Pro brochure", "https://mgmotors.com.pk/assets/brochure/Binguo-Brochure.pdf")],
   }),
   vehicle({
     make: "MG", model: "MG5", bodyStyle: "Sedan / electric estate", market: "Imported and limited Pakistan-market examples",
@@ -553,18 +658,96 @@ export const ADDITIONAL_PAKISTAN_VEHICLES = [
 
   vehicle({ make: "Chery", model: "Tiggo 4 Pro", bodyStyle: "Compact SUV", fitments: [reference("215/60 R17", "Common reference for selected Tiggo 4 Pro configurations")], sources: [official("Chery Pakistan vehicle range", "https://www.cherypakistan.com/")], searchIndex: false }),
   vehicle({ make: "Chery", model: "Tiggo 8 Pro", bodyStyle: "Seven-seat SUV", fitments: [reference("235/55 R18", "Common reference for selected Tiggo 8 Pro configurations")], sources: [official("Chery Pakistan vehicle range", "https://www.cherypakistan.com/")], searchIndex: false }),
+  vehicle({
+    make: "Chery", model: "Tiggo 7 PHEV", bodyStyle: "Plug-in-hybrid SUV", market: "Current Pakistan-market Premium FWD configuration",
+    fitments: [reference("225/60 R18", "Official current Pakistan-market specification", {
+      years: "Current Pakistan model",
+      variants: "Tiggo 7 PHEV Premium FWD / 2WD",
+      sourceLabel: "Chery Pakistan official brochure",
+    })],
+    sources: [official("Chery Pakistan Tiggo 7 PHEV brochure", "https://www.cherypakistan.com/wp-content/uploads/2026/04/chery7final.pdf")],
+  }),
+  vehicle({
+    make: "Chery", model: "Tiggo 8 PHEV", bodyStyle: "Plug-in-hybrid seven-seat SUV", market: "Current Pakistan-market Premium AWD configuration",
+    fitments: [reference("235/50 R19", "Official current Pakistan-market specification", {
+      years: "Current Pakistan model",
+      variants: "Tiggo 8 PHEV Premium AWD",
+      sourceLabel: "Chery Pakistan official brochure",
+    })],
+    sources: [official("Chery Pakistan Tiggo 8 PHEV brochure", "https://www.cherypakistan.com/wp-content/uploads/2026/01/Chery-Tiggo-8-PHEV-Desktop.pdf")],
+  }),
+  vehicle({
+    make: "Chery", model: "Tiggo 9 PHEV", bodyStyle: "Plug-in-hybrid flagship SUV", market: "Current Pakistan-market Premium AWD configuration",
+    fitments: [reference("245/50 R20", "Official current Pakistan-market Cooper tyre specification", {
+      years: "Current Pakistan model",
+      variants: "Tiggo 9 PHEV Premium AWD",
+      sourceLabel: "Chery Pakistan official brochure",
+      note: "The official brochure identifies Cooper tyres. Confirm the complete load/speed marking on the delivered vehicle.",
+    })],
+    sources: [official("Chery Pakistan Tiggo 9 PHEV brochure", "https://www.cherypakistan.com/wp-content/uploads/2026/02/Chery-T9-Brochure.pdf")],
+  }),
   vehicle({ make: "BAIC", model: "BJ40 Plus", bodyStyle: "Off-road SUV", fitments: [reference("265/65 R17", "Official global reference; Pakistan-local trim must still be checked", { sourceLabel: "BAIC global specification" })], sources: [{ type: "Official global specification", title: "BAIC BJ40 Plus specification", url: "https://www.baicglobal.com/file/upload/2022/08/16/BJ40%20PLUS%20Specifications_20220816135438A007.pdf" }], searchIndex: false }),
   vehicle({ make: "BAIC", model: "D20", bodyStyle: "Hatchback / sedan", fitments: [reference("195/55 R16", "Reference for selected D20 configurations")], searchIndex: false }),
-  vehicle({ make: "DFSK", model: "Glory 580", bodyStyle: "Seven-seat SUV", fitments: [reference("225/55 R18", "Reference for selected Glory 580 configurations")], searchIndex: false }),
+  vehicle({
+    make: "DFSK", model: "Glory 580", bodyStyle: "Seven-seat SUV", market: "Pakistan-market Glory 580 / Glory 580 Pro brochure generation",
+    fitments: [reference("225/55 R18", "Official Pakistan-market alloy-wheel tyre specification", {
+      variants: "Glory 580 / Glory 580 Pro brochure generation",
+      sourceLabel: "DFSK Pakistan official brochure",
+    })],
+    sources: [official("DFSK Pakistan Glory 580 brochure", "https://dfskpakistan.com/wp-content/uploads/2020/12/glory-brochure.pdf")],
+  }),
   vehicle({ make: "DFSK", model: "Seres 3", bodyStyle: "Electric SUV", fitments: [reference("225/55 R18", "Reference for selected Seres 3 configurations")], searchIndex: false }),
   vehicle({ make: "Prince", model: "Pearl", bodyStyle: "City hatchback", fitments: [reference("155/65 R13", "Official Pakistan-market Prince Pearl reference")], sources: [official("Regal Automobiles Prince Pearl specification", "https://regalautomobiles.com/prince-pearl/")] }),
   vehicle({ make: "Isuzu", model: "D-Max", bodyStyle: "Pickup", fitments: [reference("255/65 R17", "Official reference for V-Cross G 3.0 MT and Hi-Rider DC 3.0 MT", { variants: "V-Cross G 3.0 MT and Hi-Rider DC 3.0 MT" }), reference("265/60 R18", "Official reference for X-Terrain 3.0 AT and V-Cross G 3.0 AT", { variants: "X-Terrain 3.0 AT and V-Cross G 3.0 AT" })], sources: [official("Isuzu Pakistan D-Max catalogue", "https://pickup.isuzupakistan.com/webImages/modeliner/DMAX-XTERRAIN-CATALOGUE.pdf")], buyingAdvice: ["Confirm load index, cargo use and terrain before choosing a highway or all-terrain pattern"] }),
   vehicle({ make: "Isuzu", model: "MU-X", bodyStyle: "SUV", fitments: [reference("255/60 R18", "Reference for selected MU-X configurations"), reference("265/60 R18", "Reference for selected market variations")], searchIndex: false }),
-  vehicle({ make: "BYD", model: "Atto 3", bodyStyle: "Electric crossover", fitments: [reference("235/50 R18", "Reference for selected Atto 3 wheel packages")], sources: [official("BYD Pakistan Atto 3", "https://byd-mega.com/vehicles/atto-3")], searchIndex: false }),
+  vehicle({
+    make: "BYD", model: "Atto 3", bodyStyle: "Electric crossover", market: "Current and earlier officially supplied Pakistan-market versions",
+    fitments: [
+      reference("235/50 R18", "Official current Pakistan-market specification", { years: "Current Pakistan specification", variants: "Current Atto 3" }),
+      reference("215/60 R17", "Official earlier Pakistan-market specification", {
+        years: "Earlier officially supplied version",
+        variants: "Earlier Atto 3 wheel package",
+        note: "Two official Pakistan specification sheets publish different wheel packages. Confirm the vehicle's model year, fitted wheel and placard before purchase.",
+      }),
+    ],
+    sources: [
+      official("BYD Pakistan current Atto 3 specification sheet", "https://www.byd-mega.com/api/v1/image/spec-sheets/BYD-Atto-3-Spec-Sheet.pdf"),
+      official("BYD Pakistan earlier Atto 3 specification sheet", "https://byd-mega.com/api/v1/image/spec-sheets/atto-3-flyer.pdf"),
+      official("BYD Pakistan Atto 3", "https://byd-mega.com/vehicles/atto-3"),
+    ],
+    buyingAdvice: ["State the model year/version because official Pakistan specifications show both 17- and 18-inch packages"],
+  }),
+  vehicle({
+    make: "BYD", model: "Shark 6", bodyStyle: "Plug-in-hybrid pickup", market: "Current Pakistan-market model",
+    fitments: [reference("265/65 R18", "Official current Continental tyre specification with full-size spare", {
+      years: "Current Pakistan model",
+      variants: "Shark 6",
+      sourceLabel: "BYD Pakistan official brochure",
+      note: "The official brochure specifies Continental tyres and a full-size spare. Match all fitted positions and spare to the vehicle's load requirement.",
+    })],
+    sources: [official("BYD Pakistan Shark 6 brochure", "https://byd-mega.com/brochure/BYD-SHARK-6.pdf")],
+    buyingAdvice: ["Confirm payload, towing and terrain use before selecting a replacement pattern"],
+  }),
   vehicle({ make: "BYD", model: "Seal", bodyStyle: "Electric sedan", fitments: [reference("225/50 R18", "Reference for selected Seal wheel packages"), reference("235/45 R19", "Reference for selected performance wheel packages")], sources: [official("BYD Pakistan Seal", "https://byd-mega.com/vehicles/seal")], searchIndex: false }),
   vehicle({ make: "JAC", model: "T9 Hunter", bodyStyle: "Pickup", fitments: [reference("265/60 R18", "Reference for selected T9 Hunter configurations")], searchIndex: false }),
-  vehicle({ make: "Jetour", model: "Dashing", bodyStyle: "Crossover", fitments: [reference("255/45 R20", "Reference for selected Dashing configurations")], searchIndex: false }),
-  vehicle({ make: "Jetour", model: "X70 Plus", bodyStyle: "Seven-seat SUV", fitments: [reference("255/45 R20", "Reference for selected X70 Plus configurations")], searchIndex: false }),
+  vehicle({
+    make: "Jetour", model: "Dashing", bodyStyle: "Crossover", market: "Current Pakistan-market configuration",
+    fitments: [reference("235/55 R19", "Official front and rear Pakistan-market specification", {
+      years: "Current Pakistan model",
+      variants: "Dashing",
+      sourceLabel: "Jetour Pakistan official brochure",
+    })],
+    sources: [official("Jetour Pakistan Dashing brochure", "https://jetour.com.pk/images/2025/02/Dashing-Brochure_Rev-4-25Nov-2024_Curved-C2P_compressed.pdf")],
+  }),
+  vehicle({
+    make: "Jetour", model: "X70 Plus", bodyStyle: "Seven-seat SUV", market: "Current Pakistan-market configuration",
+    fitments: [reference("235/55 R19", "Official front and rear Pakistan-market specification", {
+      years: "Current Pakistan model",
+      variants: "X70 Plus",
+      sourceLabel: "Jetour Pakistan official brochure",
+    })],
+    sources: [official("Jetour Pakistan X70 Plus brochure", "https://jetour.com.pk/othuceem/2025/02/Jetour-X70-Plus-Brochure_27-Nov-2024_Curved.pdf")],
+  }),
   vehicle({ make: "FAW", model: "V2", bodyStyle: "Hatchback", market: "Older locally sold examples", fitments: [reference("175/65 R14", "Reference for selected FAW V2 configurations")], searchIndex: false }),
   vehicle({ make: "FAW", model: "Sirius", bodyStyle: "MPV", market: "Older Pakistan-road examples", fitments: [reference("205/55 R16", "Reference for selected FAW Sirius configurations")], searchIndex: false }),
   vehicle({ make: "Honri", model: "i200", bodyStyle: "Electric city car", market: "Pakistan-market examples", fitments: [], searchIndex: false }),

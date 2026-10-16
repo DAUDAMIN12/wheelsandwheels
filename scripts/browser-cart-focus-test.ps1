@@ -97,6 +97,21 @@ try {
     screenHeight = 844
   } | Out-Null
   Invoke-Cdp "Page.enable" | Out-Null
+  Invoke-Cdp "Page.addScriptToEvaluateOnNewDocument" @{
+    source = @'
+window.__wheelsQa = { cls: 0, routeLoadingSeen: false };
+try {
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (!entry.hadRecentInput) window.__wheelsQa.cls += entry.value;
+    }
+  }).observe({ type: "layout-shift", buffered: true });
+} catch {}
+new MutationObserver(() => {
+  if (document.querySelector(".route-loading")) window.__wheelsQa.routeLoadingSeen = true;
+}).observe(document, { childList: true, subtree: true });
+'@
+  } | Out-Null
   Invoke-Cdp "Page.navigate" @{ url = "$BaseUrl/product/bridgestone-ecopia-ep300" } | Out-Null
 
   $ready = $false
@@ -252,6 +267,93 @@ JSON.stringify({
   $routeFocus | ConvertTo-Json -Compress
   if ($routeFocus.path -ne "/guides" -or $routeFocus.activeId -ne "main-content" -or -not $routeFocus.title) {
     throw "SPA route navigation did not move focus to the new page content"
+  }
+
+  Invoke-Cdp "Emulation.setDeviceMetricsOverride" @{
+    width = 1440
+    height = 900
+    deviceScaleFactor = 1
+    mobile = $false
+    screenWidth = 1440
+    screenHeight = 900
+  } | Out-Null
+  Invoke-Cdp "Page.navigate" @{ url = "$BaseUrl/guides" } | Out-Null
+  $guidesReady = $false
+  for ($attempt = 0; $attempt -lt 40; $attempt += 1) {
+    Start-Sleep -Milliseconds 200
+    $guidesReady = Invoke-JavaScript "document.readyState === 'complete' && Boolean(document.querySelector('.guides-hub'))"
+    if ($guidesReady) { break }
+  }
+  if (-not $guidesReady) { throw "Guides page did not become interactive" }
+  Start-Sleep -Milliseconds 800
+  $hydrationJson = Invoke-JavaScript @'
+JSON.stringify({
+  cls: window.__wheelsQa?.cls || 0,
+  routeLoadingSeen: window.__wheelsQa?.routeLoadingSeen === true,
+  width: window.innerWidth,
+  clientWidth: document.documentElement.clientWidth,
+  scrollWidth: document.documentElement.scrollWidth,
+  hasContent: Boolean(document.querySelector('.guides-hub h1'))
+})
+'@
+  $hydration = $hydrationJson | ConvertFrom-Json
+  $hydration | ConvertTo-Json -Compress
+  if (
+    $hydration.width -ne 1440 -or
+    $hydration.scrollWidth -gt ($hydration.clientWidth + 1) -or
+    -not $hydration.hasContent -or
+    $hydration.routeLoadingSeen -or
+    [double]$hydration.cls -gt 0.1
+  ) {
+    throw "Initial SEO-route hydration caused overflow, a loading flash or excessive layout shift"
+  }
+
+  Invoke-Cdp "Emulation.setDeviceMetricsOverride" @{
+    width = 390
+    height = 844
+    deviceScaleFactor = 1
+    mobile = $true
+    screenWidth = 390
+    screenHeight = 844
+  } | Out-Null
+  Invoke-Cdp "Page.navigate" @{ url = "$BaseUrl/vehicles/honda-city" } | Out-Null
+  $vehicleReady = $false
+  for ($attempt = 0; $attempt -lt 40; $attempt += 1) {
+    Start-Sleep -Milliseconds 200
+    $vehicleReady = Invoke-JavaScript "document.readyState === 'complete' && Boolean(document.querySelector('.seo-landing--vehicle'))"
+    if ($vehicleReady) { break }
+  }
+  if (-not $vehicleReady) { throw "Vehicle guide did not become interactive" }
+  Start-Sleep -Milliseconds 500
+  $mobileLayoutJson = Invoke-JavaScript @'
+(() => {
+  const hero = document.querySelector('.growth-hero');
+  const copy = document.querySelector('.growth-hero-copy');
+  const heading = copy?.querySelector('h1');
+  return JSON.stringify({
+    width: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    heroClientWidth: hero?.clientWidth || 0,
+    heroScrollWidth: hero?.scrollWidth || 0,
+    copyClientWidth: copy?.clientWidth || 0,
+    copyScrollWidth: copy?.scrollWidth || 0,
+    headingClientWidth: heading?.clientWidth || 0,
+    headingScrollWidth: heading?.scrollWidth || 0,
+    routeLoadingSeen: window.__wheelsQa?.routeLoadingSeen === true
+  });
+})()
+'@
+  $mobileLayout = $mobileLayoutJson | ConvertFrom-Json
+  $mobileLayout | ConvertTo-Json -Compress
+  if (
+    $mobileLayout.width -ne 390 -or
+    $mobileLayout.scrollWidth -ne 390 -or
+    $mobileLayout.heroScrollWidth -gt ($mobileLayout.heroClientWidth + 1) -or
+    $mobileLayout.copyScrollWidth -gt ($mobileLayout.copyClientWidth + 1) -or
+    $mobileLayout.headingScrollWidth -gt ($mobileLayout.headingClientWidth + 1) -or
+    $mobileLayout.routeLoadingSeen
+  ) {
+    throw "Mobile vehicle guide overflowed, clipped its hero copy or flashed a route loader"
   }
 
   Invoke-JavaScript "localStorage.setItem('ww-admin-token', 'expired-test-token'); true" | Out-Null

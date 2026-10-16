@@ -4,6 +4,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,
+  "trailingSlash": false,
   "functions": {
     "api/index.js": {
       "maxDuration": 30
@@ -51,7 +52,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
-    { "source": "/product/:id", "destination": "/product-fallback" }
+    { "source": "/api/:path*", "destination": "/api/index" }
   ]
 }

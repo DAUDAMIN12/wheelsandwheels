@@ -3,12 +3,14 @@ import path from "node:path";
 import {
   GUIDE_TOPICS,
   GUIDES,
+  SEO_BRANDS,
   SEO_VEHICLES,
   SEO_SIZES,
   TYRE_RIM_HUBS,
 } from "../src/Data/seoContent.js";
 import { TYRE_RATES_PAGE, VEHICLE_MAKE_PAGES } from "../src/Data/marketPages.js";
 import TYRE_SIZE_MANIFEST from "../src/Data/tyreSizeManifest.js";
+import PRODUCTS from "../src/Data/productsData.js";
 
 const dist = path.resolve("dist");
 const failures = [];
@@ -61,6 +63,31 @@ const requiredRimDiameters = Array.from({ length: 13 }, (_, index) => index + 12
 const manifestSizeCodes = new Set(TYRE_SIZE_MANIFEST.map((item) => item.size));
 
 assert(SEO_VEHICLES.length >= 100, "Pakistan vehicle directory contains too few model guides");
+assert(SEO_BRANDS.length >= 20, "Tyre brand directory contains too few useful brand guides");
+assert(GUIDES.length >= 20, "Long-form tyre and wheel guide library is too small");
+assert(
+  new Set(GUIDES.map((item) => item.slug)).size === GUIDES.length,
+  "Duplicate guide slugs found",
+);
+assert(
+  new Set(GUIDES.map((item) => item.image).filter(Boolean)).size === GUIDES.filter((item) => item.image).length,
+  "Guide cover images must not be repeated",
+);
+for (const guide of GUIDES) {
+  assert(Boolean(guide.imageAlt?.trim()), `Guide image is missing useful alt text: ${guide.slug}`);
+  assert((guide.sources?.length || 0) > 0, `Guide has no primary references: ${guide.slug}`);
+  for (const source of guide.sources || []) {
+    assert(/^https:\/\//.test(source.url || ""), `Guide source must use HTTPS: ${guide.slug}`);
+    assert(Boolean(source.title && source.publisher), `Guide source is incomplete: ${guide.slug}`);
+  }
+  for (const [field, asset] of [["image", guide.image], ["imageSmall", guide.imageSmall]]) {
+    assert(Boolean(asset), `Guide is missing ${field}: ${guide.slug}`);
+    if (!asset) continue;
+    assert(asset.startsWith("/"), `Guide ${field} must use a root-relative asset: ${guide.slug}`);
+    const assetPath = asset.split(/[?#]/, 1)[0].replace(/^\/+/, "");
+    assert(await exists(path.join(dist, assetPath)), `Missing guide ${field} asset: ${guide.slug} -> ${asset}`);
+  }
+}
 assert(
   new Set(SEO_VEHICLES.map((item) => item.slug)).size === SEO_VEHICLES.length,
   "Duplicate vehicle slugs found",
@@ -88,7 +115,7 @@ SEO_VEHICLES.forEach((vehicle) => {
     const match = fitment.size.match(/^(\d{3})\s*\/\s*(\d{2})\s*R\s*(\d{2})$/i);
     if (!match) {
       assert(
-        /^\d{3}(?:\/\d{2})?\s*R\d{2}(?:C|LT)?(?:\s+\d{2,3}\/\d{2,3}[A-Z])?$/i.test(fitment.size),
+        /^\d{3}(?:\/\d{2})?\s*R\d{2}(?:\.\d)?(?:C|LT)?(?:\s+\d{2,3}(?:\/\d{2,3})?[A-Z])?$/i.test(fitment.size),
         `Vehicle fitment is neither a standard nor supported specialist tyre code: ${vehicle.slug} -> ${fitment.size}`,
       );
       return;
@@ -121,9 +148,12 @@ SEO_SIZES.forEach((item) => {
   );
 });
 requiredRimDiameters.forEach((rim) => {
+  const hub = TYRE_RIM_HUBS.find((item) => item.rim === rim);
   assert(
-    sitemapPaths.has(`/tyre-sizes/${rim}-inch`),
-    `Missing ${rim}-inch tyre hub from sitemap`,
+    hub?.noIndex
+      ? !sitemapPaths.has(`/tyre-sizes/${rim}-inch`)
+      : sitemapPaths.has(`/tyre-sizes/${rim}-inch`),
+    `Incorrect sitemap state for ${rim}-inch tyre hub`,
   );
   assert(
     TYRE_SIZE_MANIFEST.some((item) => Number(item.rim) === rim),
@@ -182,6 +212,7 @@ for (const location of locations) {
     `Expected exactly one meta description on ${url.pathname}`,
   );
   for (const selector of [
+    'property="og:site_name"',
     'property="og:title"',
     'property="og:description"',
     'property="og:image"',
@@ -297,11 +328,8 @@ for (const [route, sources] of internalLinkSources) {
     ? [path.join(dist, "index.html")]
     : [path.join(dist, relative, "index.html"), path.join(dist, `${relative}.html`)];
   const hasStaticTarget = (await Promise.all(candidates.map(exists))).some(Boolean);
-  const hasProductFallback =
-    /^\/product\/[a-z0-9-]{2,120}$/i.test(route) &&
-    (await exists(path.join(dist, "product-fallback.html")));
   assert(
-    hasStaticTarget || hasProductFallback,
+    hasStaticTarget,
     `Broken internal link ${route} from ${[...sources].slice(0, 3).join(", ")}`,
   );
 }
@@ -346,13 +374,42 @@ for (const vehicle of SEO_VEHICLES) {
   );
 }
 
+for (const hub of TYRE_RIM_HUBS) {
+  const relative = hub.path.replace(/^\/+|\/+$/g, "");
+  const file = path.join(dist, relative, "index.html");
+  assert(await exists(file), `Missing tyre-diameter hub: ${hub.path}`);
+  if (!(await exists(file))) continue;
+  const html = await read(file);
+  const isNoIndex = /<meta name="robots" content="[^"]*noindex/i.test(html);
+  assert(isNoIndex === Boolean(hub.noIndex), `Tyre-diameter hub indexability mismatch: ${hub.path}`);
+  assert(
+    hub.noIndex ? !sitemapPaths.has(hub.path) : sitemapPaths.has(hub.path),
+    `Tyre-diameter hub sitemap mismatch: ${hub.path}`,
+  );
+}
+
+for (const product of PRODUCTS.filter((item) => item.slug)) {
+  const route = `/product/${product.slug}`;
+  const file = path.join(dist, "product", product.slug, "index.html");
+  assert(await exists(file), `Missing accessible catalogue page: ${route}`);
+  if (!(await exists(file))) continue;
+  const html = await read(file);
+  assert(/<meta name="robots" content="[^"]*noindex/i.test(html), `Representative catalogue page must be noindex: ${route}`);
+  assert(!sitemapPaths.has(route), `Representative catalogue page leaked into sitemap: ${route}`);
+}
+
+assert(
+  !(await exists(path.join(dist, "product-fallback.html"))),
+  "Obsolete product soft-404 fallback must not be generated",
+);
+
 for (const page of Object.values(VEHICLE_MAKE_PAGES)) {
   const relative = page.route.replace(/^\/+|\/+$/g, "");
   const file = path.join(dist, relative, "index.html");
   assert(await exists(file), `Missing accessible vehicle make page: ${page.route}`);
 }
 
-for (const relative of ["404.html", "product-fallback.html", "admin/index.html", "quote/index.html"]) {
+for (const relative of ["404.html", "admin/index.html", "quote/index.html"]) {
   const file = path.join(dist, relative);
   assert(await exists(file), `Missing utility page: ${relative}`);
   if (await exists(file)) {

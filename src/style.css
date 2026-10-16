@@ -100,7 +100,8 @@ html,body,#root{max-width:100%;overflow-x:hidden}.site-header a,.site-header but
 @media(max-width:900px){.growth-size-option-grid,.growth-catalogue-grid{grid-template-columns:1fr 1fr}.detail-information{grid-template-columns:1fr}}
 @media(max-width:600px){.home-growth-grid,.discovery-grid,.guides-grid,.discovery-help,.growth-highlight-grid,.growth-link-grid{grid-template-columns:1fr}.home-growth-grid>a{min-height:210px}.popular-seo-links{align-items:flex-start}.growth-breadcrumbs{padding:17px 14px 0}.growth-hero,.discovery-hero{margin-top:14px;padding:36px 18px;border-radius:0}.growth-hero-copy h1,.guide-article-header h1{font-size:48px}.growth-actions{display:grid}.growth-actions>a{width:100%}.discovery-finder{grid-template-columns:1fr;padding:18px}.discovery-finder>div,.discovery-finder button,.discovery-finder>p{grid-column:auto}.growth-page .section{padding-left:14px;padding-right:14px}.growth-copy-section,.guide-section{padding:24px 18px}.growth-lead-banner{margin-top:15px;padding:38px 20px;display:block}.growth-lead-banner>.primary{width:100%;margin-top:18px}.guide-card--featured{grid-column:auto}.guide-card--featured .guide-card-media{height:180px}.guide-article-header{padding:45px 18px}.guide-cover{height:240px}.footer-grid{grid-template-columns:1fr}.growth-hero-media{height:240px}}
 @media(max-width:600px){.growth-size-option-grid,.growth-catalogue-grid{grid-template-columns:1fr}.growth-size-option-grid>a{min-height:118px}.growth-sourcing-panel{display:block}.growth-sourcing-panel>a{display:flex;margin-top:20px;width:100%;justify-content:center}.growth-catalogue-image{height:190px}.detail-specification-card,.detail-research-card{padding:24px 18px}.detail-specification-card dl{grid-template-columns:1fr}.detail-specification-card dl>div:nth-child(odd){margin-right:0}.fitment-result{display:block}.fitment-result-actions{justify-content:space-between;margin-top:14px}}
-.route-loading{min-height:55vh;display:grid;place-items:center;color:#666;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.seo-prerender h1{font:800 clamp(48px,7vw,86px)/.9 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.seo-prerender h2{font:800 30px 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.seo-prerender p{max-width:820px;line-height:1.8;color:#596268}
+.app-route-content{min-height:calc(100svh - 118px)}.route-loading{min-height:calc(100svh - 118px);display:grid;place-items:center;color:#666;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.seo-prerender h1{font:800 clamp(48px,7vw,86px)/.9 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.seo-prerender h2{font:800 30px 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.seo-prerender p{max-width:820px;line-height:1.8;color:#596268}
+@media(max-width:620px){.app-route-content,.route-loading{min-height:calc(100svh - 104px)}}
 .form-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important}
 .business-page-hero{grid-template-columns:minmax(0,1.3fr) minmax(270px,.7fr)}.business-hero-card{align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:32px;background:#fff;color:#171a1d;border-top:4px solid var(--red)}.business-hero-card>svg{font-size:28px;color:var(--red)}.business-hero-card h2{font:800 32px/1 'Barlow Condensed';text-transform:uppercase;margin:4px 0}.business-hero-card address,.business-hero-card p{font-style:normal;color:#687177;font-size:11px;line-height:1.75}.business-hero-card>a{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e0e3e4;padding-top:15px;color:var(--red);font-size:9px;font-weight:800;text-transform:uppercase}.business-details{padding-top:72px!important;padding-bottom:72px!important}.business-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.business-detail-grid article{display:flex;flex-direction:column;min-height:230px;padding:28px;background:#fff;border:1px solid #dfe2e3}.business-detail-grid article>svg{font-size:24px;color:var(--red);margin-bottom:18px}.business-detail-grid h3{font:800 26px/1 'Barlow Condensed';text-transform:uppercase;margin:0 0 12px}.business-detail-grid p,.business-detail-grid address{font-style:normal;color:#687177;font-size:10px;line-height:1.8;margin:0}.business-detail-grid article>a:last-child{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:18px;border-top:1px solid #e3e5e6;color:var(--red);font-size:8px;font-weight:800;text-transform:uppercase;word-break:break-word}.business-detail-grid p a{color:#171a1d;font-weight:700}.growth-highlights>h2{font:800 42px/.95 'Barlow Condensed';text-transform:uppercase;margin:8px 0 28px}.business-services .service-grid{grid-template-columns:repeat(3,1fr)}.business-services .service-card{min-height:285px;padding:28px;border:1px solid #dfe2e3}.business-services .service-card>b{left:0;top:0}.business-services .service-card-copy{display:flex;flex-direction:column;height:100%;padding-top:32px}.business-services .service-card h3,.business-services .service-card p{margin-left:0;margin-right:0}.business-services .service-card h3{font-size:29px}.business-services .service-card a{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:18px;border-top:1px solid #e1e4e5;color:var(--red);font-size:8px;font-weight:800;text-transform:uppercase}.growth-whatsapp-button svg{font-size:15px}.local-page .growth-highlight-grid a{display:inline-flex;margin-top:12px;color:var(--red);font-size:8px;font-weight:800;text-transform:uppercase}.faq-page .growth-faq{padding-top:55px}
 @media(max-width:900px){.business-page-hero{grid-template-columns:1fr}.business-detail-grid{grid-template-columns:1fr 1fr}.business-services .service-grid{grid-template-columns:1fr 1fr}}
@@ -489,4 +490,82 @@ body.navigation-open,body.dialog-open{overflow:hidden}
   .vehicle-fitment-details dt,
   .vehicle-fitment-reviewed,
   .vehicle-fitment-provenance small{font-size:11px}
+}
+
+/* Interactive tyre tools: useful calculations with explicit fitment limits. */
+.tools-hero,.tool-detail-hero{min-height:390px;align-items:center;background:linear-gradient(120deg,#f4f5f4 0%,#fff 64%,#e8ebec 100%)}
+.tools-hero .growth-hero-copy,.tool-detail-hero .growth-hero-copy{max-width:930px}
+.tool-detail-hero{display:flex;justify-content:space-between;gap:50px}
+.tool-hero-icon{flex:none;margin-right:5vw;color:#dfe2e3;font-size:clamp(110px,16vw,230px)}
+.tool-card-grid{padding-top:58px!important}
+.tool-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.tool-card{display:flex;min-height:315px;flex-direction:column;padding:38px;background:#fff;border:1px solid #d9dddf;border-top:4px solid var(--red);transition:transform .2s ease,box-shadow .2s ease}
+.tool-card:hover,.tool-card:focus-visible{transform:translateY(-4px);box-shadow:0 20px 42px #11131512}
+.tool-card>svg{color:var(--red);font-size:34px}
+.tool-card small{margin-top:34px;color:#7a8287;font-size:8px;font-weight:800;letter-spacing:.13em}
+.tool-card h3{margin:9px 0 12px;font:800 37px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.tool-card p{max-width:620px;margin:0;color:#626b70;font-size:11px;line-height:1.75}
+.tool-card strong{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:auto;padding-top:28px;border-top:1px solid #e0e3e4;color:var(--red);font-size:9px;text-transform:uppercase}
+.calculator-shell{padding-top:58px!important}
+.calculator-input-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.tool-size-fields{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);align-items:end;gap:10px;margin:0;padding:28px;background:#fff;border:1px solid #d8dcde;min-width:0}
+.tool-size-fields legend{padding:0 8px;color:#171c1f;font:800 23px 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.tool-size-fields label{min-width:0;color:#687177;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
+.tool-size-fields input{width:100%;height:56px;margin-top:8px;padding:0 13px;border:1px solid #bdc3c6;background:#f7f8f7;color:#171c1f;font-size:19px;font-weight:750;outline:none}
+.tool-size-fields input:focus,.date-code-input input:focus{border-color:#171c1f;box-shadow:0 0 0 3px #e32b2f24}
+.tool-size-divider{height:56px;display:grid;place-items:center;color:#727a7f;font-weight:800}
+.calculator-result{margin-top:16px;padding:30px;background:#fff;border:1px solid #d8dcde;border-left:5px solid #9aa0a3}
+.calculator-result-close{border-left-color:#168a57}.calculator-result-caution{border-left-color:#d69200}.calculator-result-warning,.calculator-result-invalid{border-left-color:var(--red)}
+.calculator-result-heading{display:flex;align-items:flex-start;gap:15px}
+.calculator-result-heading>svg{flex:none;margin-top:3px;color:#687177;font-size:22px}.calculator-result-close .calculator-result-heading>svg{color:#168a57}.calculator-result-warning .calculator-result-heading>svg,.calculator-result-invalid .calculator-result-heading>svg{color:var(--red)}
+.calculator-result-heading small{color:#798186;font-size:8px;font-weight:800;letter-spacing:.12em}
+.calculator-result-heading h3{margin:4px 0 0;font:800 31px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.calculator-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin-top:27px;background:#dfe2e3;border:1px solid #dfe2e3}
+.calculator-metrics article{min-width:0;padding:20px;background:#f5f6f5}
+.calculator-metrics span,.calculator-metrics strong{display:block}.calculator-metrics span{color:#71797e;font-size:8px;font-weight:800;text-transform:uppercase}.calculator-metrics strong{margin-top:8px;font:800 23px 'Barlow Condensed',Arial,sans-serif;overflow-wrap:anywhere}
+.calculator-disclaimer{margin:22px 0 0;padding:18px 20px;background:#171c1f;color:#cbd0d2;font-size:10px;line-height:1.7}.calculator-disclaimer strong{color:#fff;text-transform:uppercase}
+.tool-explainer{padding-top:35px!important}
+.tool-explainer>h2{margin:0;font:800 46px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.tool-explainer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:30px}
+.tool-explainer-grid article{padding:25px;background:#fff;border:1px solid #dce0e1}
+.tool-explainer-grid h3{margin:0 0 9px;font:800 24px 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.tool-explainer-grid p{margin:0;color:#657075;font-size:10px;line-height:1.7}
+.tool-warning{display:flex;align-items:flex-start;gap:11px;margin-top:20px;padding:16px;background:#fff4d9;color:#624a12;font-size:10px;line-height:1.6}.tool-warning svg{flex:none;margin-top:2px}
+.date-checker-shell{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:18px;padding-top:58px!important}
+.date-checker-copy,.date-code-result{padding:38px;background:#fff;border:1px solid #d8dcde}
+.date-checker-copy h2{margin:0 0 10px;font:800 39px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.date-checker-copy>p:not(.eyebrow){max-width:590px;color:#626b70;font-size:11px;line-height:1.7}
+.date-code-input{display:block;margin-top:28px;color:#687177;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}.date-code-input input{display:block;width:min(320px,100%);height:72px;margin-top:9px;padding:0 18px;border:2px solid #bdc3c6;background:#f7f8f7;color:#171c1f;font:800 38px 'Barlow Condensed',Arial,sans-serif;letter-spacing:.18em;outline:none}.date-checker-copy>small{display:block;margin-top:8px;color:#7a8287;font-size:8px}
+.date-code-result{display:flex;min-height:330px;flex-direction:column;justify-content:center;border-left:5px solid #168a57}.date-code-result.invalid{border-left-color:var(--red)}.date-code-result>small{color:#757d82;font-size:8px;font-weight:800;letter-spacing:.12em}.date-code-result h3{margin:8px 0 14px;font:800 46px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.date-code-result>p{margin:0;color:#626b70;font-size:12px;line-height:1.75}
+.tool-sources{margin-top:30px;padding:24px;background:#eef0f1;border-left:4px solid var(--red)}.tool-sources h3{margin:0 0 12px;font:800 23px 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}.tool-sources ul{margin:0;padding-left:18px}.tool-sources li{margin:7px 0;color:#3f474b;font-size:10px;line-height:1.6}.tool-sources a{text-decoration:underline;text-underline-offset:3px}.tool-sources a:hover,.tool-sources a:focus-visible{color:var(--red)}
+.tool-lead-banner .growth-actions{flex:none;margin:0}
+
+@media(max-width:900px){
+  .tool-detail-hero{min-height:330px}.tool-hero-icon{font-size:120px}
+  .calculator-input-grid,.date-checker-shell{grid-template-columns:1fr}
+  .calculator-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .tools-hero,.tool-detail-hero{min-height:0;padding-top:58px;padding-bottom:58px}
+  .tool-detail-hero{display:block}.tool-hero-icon{display:none}
+  .tool-cards,.tool-explainer-grid{grid-template-columns:1fr}
+  .tool-card{min-height:285px;padding:27px 20px}.tool-card p,.tool-explainer-grid p{font-size:13px}
+  .tool-size-fields{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:5px;padding:20px 12px}
+  .tool-size-fields label{font-size:10px}.tool-size-fields input{height:54px;padding:0 8px;font-size:17px}.tool-size-divider{height:54px}
+  .calculator-result{padding:23px 16px}.calculator-metrics{grid-template-columns:1fr}.calculator-metrics span{font-size:10px}.calculator-disclaimer{font-size:12px}
+  .tool-explainer>h2{font-size:38px}
+  .date-checker-copy,.date-code-result{padding:28px 19px}.date-code-result{min-height:280px}.date-code-result h3{font-size:39px}.date-checker-copy>p:not(.eyebrow),.date-code-result>p,.tool-warning,.tool-sources li{font-size:13px}
+  .tool-lead-banner .growth-actions{width:100%}
+}
+
+/* Transparent primary references on long-form tyre and rim guides. */
+.guide-sources{background:#fff;border:1px solid #dfe2e3;padding:30px 35px}
+.guide-sources h2{margin:0 0 10px;font:800 30px/1 'Barlow Condensed',Arial,sans-serif;text-transform:uppercase}
+.guide-sources>p{margin:0 0 18px;color:#687177;font-size:11px;line-height:1.7}
+.guide-sources ul{display:grid;gap:9px;margin:0;padding:0;list-style:none}
+.guide-sources li{display:grid;gap:3px;padding-top:9px;border-top:1px solid #e4e6e7}
+.guide-sources a{color:var(--red);font-size:11px;font-weight:750;text-decoration:underline;text-underline-offset:3px}
+.guide-sources li span{color:#747c81;font-size:9px}
+@media(max-width:600px){
+  .guide-sources{padding:24px 18px}
+  .guide-sources>p,.guide-sources a{font-size:13px}
+  .guide-sources li span{font-size:11px}
 }

@@ -1,8 +1,9 @@
 import PRODUCTS from "./productsData.js";
 import { TYRE_SIZE_MANIFEST } from "./tyreSizeManifest.js";
 import { ADDITIONAL_PAKISTAN_VEHICLES } from "./vehicleFitments.js";
+import { ADDITIONAL_GUIDES } from "./additionalGuides.js";
 
-export const SEO_CONTENT_UPDATED = "2026-10-04";
+export const SEO_CONTENT_UPDATED = "2026-10-15";
 
 export const FITMENT_NOTICE =
   "Tyre sizes can change by model year, trim, import specification, wheel package and previous modification. Confirm the size, load index and speed rating on the vehicle placard or owner's manual, then have the complete fitment checked before purchase.";
@@ -28,7 +29,7 @@ const makeBrand = ({
 }) => {
   const categoryLink = ["dunlop", "yokohama", "bridgestone", "toyo", "falken", "nitto"].includes(slug)
     ? { label: "Compare Japanese tyre options", href: "/tyres/japanese" }
-    : ["aplus", "sailun", "linglong", "triangle", "roadx"].includes(slug)
+    : ["aplus", "sailun", "linglong", "triangle", "roadx", "mirage"].includes(slug)
       ? { label: "Compare Chinese tyre options", href: "/tyres/chinese" }
       : marketPosition === "Premium"
         ? { label: "Compare premium tyre options", href: "/tyres/premium" }
@@ -147,6 +148,108 @@ export const SEO_BRANDS = [
       "Nitto offers passenger, performance, SUV and all-terrain tyre families in selected fitments. Large-diameter availability is size-specific, so confirm the exact pattern, ratings and production details.",
     knownFor: ["Performance tyres", "SUV road tyres", "All-terrain and off-road ranges"],
     exampleFamilies: ["NT420V", "NT555", "Terra Grappler"],
+  }),
+  makeBrand({
+    slug: "general-tire",
+    name: "General Tire",
+    brandOrigin:
+      "US-origin brand within the Continental group; manufacturing country varies by product and market",
+    marketPosition: "Mid-range",
+    summary:
+      "General Tire offers passenger-car, SUV, 4x4 and light-truck ranges. Compare the exact pattern, ratings and intended road use, then inspect the sidewall of the tyre offered.",
+    knownFor: [
+      "Passenger-car touring ranges",
+      "SUV and 4x4 tyres",
+      "All-terrain and light-truck patterns",
+    ],
+    exampleFamilies: ["Altimax", "Grabber", "G-MAX"],
+  }),
+  makeBrand({
+    slug: "goodyear",
+    name: "Goodyear",
+    brandOrigin: "US-origin brand; manufacturing country varies by product and market",
+    marketPosition: "Mid-range to premium, depending on pattern",
+    summary:
+      "Goodyear offers touring, performance, SUV and 4x4 tyre ranges. Compare the purpose of the exact family, required ratings and sidewall details before choosing a fitment.",
+    knownFor: ["Passenger-car touring ranges", "Performance tyres", "SUV and 4x4 tyres"],
+    exampleFamilies: ["Eagle", "EfficientGrip", "Wrangler"],
+  }),
+  makeBrand({
+    slug: "hankook",
+    name: "Hankook",
+    brandOrigin: "South Korean brand; manufacturing country varies by product and market",
+    marketPosition: "Mid-range to premium",
+    summary:
+      "Hankook produces touring, performance and SUV tyre families. The exact pattern, ratings and production details should be compared because each family is designed around a different driving priority.",
+    knownFor: ["Performance-oriented ranges", "Touring and comfort tyres", "SUV and 4x4 tyres"],
+    exampleFamilies: ["Ventus", "Kinergy", "Dynapro"],
+  }),
+  makeBrand({
+    slug: "kumho",
+    name: "Kumho",
+    brandOrigin: "South Korean brand; manufacturing country varies by product and market",
+    marketPosition: "Mid-range to premium, depending on pattern",
+    summary:
+      "Kumho covers touring, performance and SUV applications. Comfort, efficiency and performance families have different priorities, so compare the exact pattern and complete specification.",
+    knownFor: ["Passenger-car touring tyres", "Performance-oriented ranges", "SUV and crossover tyres"],
+    exampleFamilies: ["ECSTA", "SOLUS", "CRUGEN"],
+  }),
+  makeBrand({
+    slug: "nexen",
+    name: "Nexen",
+    brandOrigin: "South Korean brand; manufacturing country varies by product and market",
+    marketPosition: "Mid-range",
+    summary:
+      "Nexen offers passenger-car, performance and SUV ranges in selected fitments. Verify the exact model, size, ratings and production details rather than treating every tyre under the brand as equivalent.",
+    knownFor: ["Passenger-car touring tyres", "Performance-oriented patterns", "SUV and crossover tyres"],
+    exampleFamilies: ["N'FERA", "N'PRIZ", "ROADIAN"],
+  }),
+  makeBrand({
+    slug: "nankang",
+    name: "Nankang",
+    brandOrigin: "Taiwanese brand; manufacturing country varies by product and market",
+    marketPosition: "Value to mid-range",
+    summary:
+      "Nankang supplies passenger-car, performance, SUV and 4x4 tyre ranges. Check the intended use and complete sidewall specification of the exact pattern before comparing it with another option.",
+    knownFor: ["Passenger-car replacements", "Performance-oriented patterns", "SUV and 4x4 ranges"],
+    exampleFamilies: ["Sportnex", "Econex", "Conqueror"],
+  }),
+  makeBrand({
+    slug: "gt-radial",
+    name: "GT Radial",
+    brandOrigin:
+      "A Giti Tire brand with an international product range; manufacturing country varies by product and market",
+    marketPosition: "Value to mid-range",
+    summary:
+      "GT Radial covers passenger-car, SUV and light-truck applications. Confirm the exact pattern, ratings, production details and seller terms for the tyre being quoted.",
+    knownFor: ["Passenger-car touring tyres", "SUV highway ranges", "All-terrain and light-truck patterns"],
+    exampleFamilies: ["Champiro", "Savero", "Adventuro"],
+  }),
+  makeBrand({
+    slug: "armstrong",
+    name: "Armstrong",
+    brandOrigin:
+      "US-origin heritage brand; current ownership and manufacturing country should be verified for the exact tyre",
+    marketPosition: "Value to mid-range",
+    summary:
+      "Armstrong-branded passenger, SUV and light-truck tyres appear in selected markets and fitments. Verify the exact product identity, sidewall details, ratings and support terms before purchase.",
+    knownFor: ["Passenger-car replacements", "SUV and crossover tyres", "All-terrain and light-truck patterns"],
+    exampleFamilies: ["Blu-Trac", "Tru-Trac", "Desert Dog"],
+  }),
+  makeBrand({
+    slug: "mirage",
+    name: "Mirage",
+    brandOrigin:
+      "Value-market brand commonly associated with Chinese tyre production; verify the manufacturer and manufacturing country on the exact tyre",
+    marketPosition: "Value-focused",
+    summary:
+      "Mirage appears in passenger-car, performance-style and SUV fitments. Product identity and availability are size-specific, so verify the exact pattern, ratings, date code and seller support.",
+    knownFor: [
+      "Passenger-car replacement sizes",
+      "Selected lower-profile fitments",
+      "SUV and light-truck patterns",
+    ],
+    exampleFamilies: [],
   }),
   makeBrand({
     slug: "aplus",
@@ -1045,6 +1148,7 @@ export const SEO_SIZES = baseSizePages.map((item) => {
 
 export const TYRE_RIM_HUBS = Array.from({ length: 13 }, (_, index) => index + 12).map((rim) => {
   const sizes = SEO_SIZES.filter((item) => item.rim === rim);
+  const indexedSizes = sizes.filter((item) => !item.noIndex);
   const firstSize = sizes[0]?.size;
   const lastSize = sizes.at(-1)?.size;
   const examples = sizes.map((item) => item.size).join(", ");
@@ -1054,7 +1158,7 @@ export const TYRE_RIM_HUBS = Array.from({ length: 13 }, (_, index) => index + 12
     path,
     rim,
     sizes,
-    noIndex: sizes.length === 0,
+    noIndex: indexedSizes.length === 0,
     name: `${rim}-inch tyre sizes`,
     title: `${rim}-inch Tyre Sizes in Lahore`,
     seoTitle: `${rim}-inch Tyre Sizes in Lahore | Fitment Directory`,
@@ -1153,6 +1257,17 @@ const GUIDE_TOPIC_DEFINITIONS = [
     intro:
       "Use repeatable inspections and diagnose symptoms early. A tyre, wheel or suspension fault should be identified before adjustment or replacement.",
   },
+  {
+    slug: "alloy-rims-and-wheel-fitment",
+    name: "Alloy rims and wheel fitment",
+    title: "Alloy Rim and Wheel-Fitment Guides",
+    seoTitle: "Alloy Rim & Wheel-Fitment Guides for Pakistan",
+    description:
+      "Understand alloy-wheel diameter, width, PCD, offset, centre bore, fasteners, tyre compatibility and impact damage before choosing or repairing rims.",
+    heroTitle: "Measure every part of the wheel fitment.",
+    intro:
+      "Wheel diameter is only the beginning. Use these guides to compare the complete wheel, tyre, hub and vehicle requirement.",
+  },
 ];
 
 const guideTopicForCategory = (category = "") => {
@@ -1206,7 +1321,40 @@ const guide = ({
   sections,
   faqs,
   relatedLinks,
+  sources: GUIDE_PRIMARY_SOURCES[slug] || [],
 });
+
+const NHTSA_TIREWISE_SOURCE = {
+  title: "TireWise: tyre selection, maintenance and safety",
+  url: "https://www.nhtsa.gov/vehicle-safety/tires",
+  publisher: "U.S. National Highway Traffic Safety Administration",
+};
+const USTMA_CARE_SOURCE = {
+  title: "Tire care and safety",
+  url: "https://www.ustires.org/tire-care-safety",
+  publisher: "U.S. Tire Manufacturers Association",
+};
+const USTMA_REPAIR_SOURCE = {
+  title: "Tire repair basics",
+  url: "https://www.ustires.org/tire-care-safety/tire-repair-basics",
+  publisher: "U.S. Tire Manufacturers Association",
+};
+const USTMA_REPLACING_SOURCE = {
+  title: "Replacing tires",
+  url: "https://www.ustires.org/tire-care-safety/replacing-tires",
+  publisher: "U.S. Tire Manufacturers Association",
+};
+const GUIDE_PRIMARY_SOURCES = {
+  "how-to-choose-the-right-tyre-size-pakistan": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "chinese-vs-japanese-vs-premium-tyres-lahore": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "verify-fresh-genuine-tyres-lahore": [NHTSA_TIREWISE_SOURCE, USTMA_REPLACING_SOURCE],
+  "wheel-alignment-vs-balancing-lahore": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "lahore-summer-monsoon-tyre-checklist": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "195-65-r15-tyre-guide-pakistan": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "tyre-load-index-speed-rating-guide-pakistan": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "how-to-compare-tyre-prices-pakistan": [NHTSA_TIREWISE_SOURCE, USTMA_CARE_SOURCE],
+  "when-to-replace-tyres-pakistan": [USTMA_REPLACING_SOURCE, USTMA_REPAIR_SOURCE],
+};
 
 export const GUIDES = [
   guide({
@@ -1963,6 +2111,7 @@ export const GUIDES = [
       { label: "Browse tyres by exact size", href: "/tyre-sizes" },
     ],
   }),
+  ...ADDITIONAL_GUIDES,
 ];
 
 export const GUIDE_TOPICS = GUIDE_TOPIC_DEFINITIONS.map((topic) => {

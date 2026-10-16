@@ -1526,10 +1526,6 @@ if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
       res.set("Cache-Control", "public, max-age=0, must-revalidate");
       return res.sendFile(prerendered);
     }
-    if (/^\/product\/[a-z0-9-]{2,120}$/i.test(req.path)) {
-      res.set("Cache-Control", "public, max-age=0, must-revalidate");
-      return res.sendFile(path.join(frontend, "product-fallback.html"));
-    }
     const notFound = path.join(frontend, "404.html");
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
     if (fs.existsSync(notFound)) return res.status(404).sendFile(notFound);
@@ -1626,6 +1622,10 @@ export function connectDatabase() {
       connectTimeoutMS: 10_000,
       serverSelectionTimeoutMS: 5_000,
       socketTimeoutMS: 15_000,
+      // Index creation is an explicit provisioning task in production. This
+      // avoids every cold serverless instance checking the same indexes.
+      autoIndex:
+        !isProductionRuntime || process.env.MONGOOSE_AUTO_INDEX === "true",
     })
     .then(() => mongoose.connection)
     .catch((error) => {
@@ -1638,6 +1638,11 @@ export function connectDatabase() {
 
 export async function provisionDatabase() {
   await connectDatabase();
+  await Promise.all(
+    [Product, Order, Admin, Inquiry, LeadEvent].map((model) =>
+      model.createIndexes(),
+    ),
+  );
   if ((await Product.countDocuments()) === 0) {
     const { seedProducts } = await import("./seedData.js");
     await Product.insertMany(seedProducts);

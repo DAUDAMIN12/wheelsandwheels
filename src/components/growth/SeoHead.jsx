@@ -323,7 +323,7 @@ export default function SeoHead({
         name="robots"
         content={
           noIndex
-            ? "noindex, nofollow"
+            ? "noindex, follow"
             : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
         }
       />

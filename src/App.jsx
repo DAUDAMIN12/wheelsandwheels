@@ -33,8 +33,7 @@ import {
 } from "react-icons/fa";
 import PRODUCTS, { formatPrice } from "./Data/productsData";
 import TYRE_SIZE_MANIFEST, { findTyreSize } from "./Data/tyreSizeManifest.js";
-import { SEO_VEHICLES } from "./Data/seoContent.js";
-import { VEHICLE_MAKE_PAGES } from "./Data/marketPages.js";
+import VEHICLE_MAKE_SLUGS from "./Data/vehicleMakeSlugs.js";
 import { api, apiWithMeta } from "./api";
 import ServiceDetail from "./components/ServiceDetail.jsx";
 import FloatingWhatsApp from "./components/FloatingWhatsApp.jsx";
@@ -58,6 +57,15 @@ const TyreSizesHub = lazy(() =>
 const GuidesHub = lazy(() => import("./components/growth/GuidesHub.jsx"));
 const GuideTopicPage = lazy(() => import("./components/growth/GuideTopicPage.jsx"));
 const GuideArticle = lazy(() => import("./components/growth/GuideArticle.jsx"));
+const ToolsHub = lazy(() =>
+  import("./components/growth/TyreTools.jsx").then((module) => ({ default: module.ToolsHub })),
+);
+const TyreSizeCalculator = lazy(() =>
+  import("./components/growth/TyreTools.jsx").then((module) => ({ default: module.TyreSizeCalculator })),
+);
+const TyreDateCodeChecker = lazy(() =>
+  import("./components/growth/TyreTools.jsx").then((module) => ({ default: module.TyreDateCodeChecker })),
+);
 const CommercialLandingPage = lazy(() =>
   import("./components/growth/CommercialLandingPage.jsx"),
 );
@@ -145,18 +153,38 @@ const SOURCING_BRANDS = [
   { brand: "Triangle", group: "chinese", origin: "China", badge: "Chinese value" },
   { brand: "RoadX", group: "chinese", origin: "China", badge: "Chinese value" },
 ];
-const NAV_VEHICLE_MAKES = ["suzuki", "toyota", "honda", "kia", "hyundai", "changan"]
-  .map((makeSlug) => {
-    const page = VEHICLE_MAKE_PAGES[makeSlug];
-    if (!page) return null;
-    return {
-      ...page,
-      models: SEO_VEHICLES
-        .filter((vehicle) => vehicle.makeSlug === makeSlug && !vehicle.noIndex)
-        .slice(0, 3),
-    };
-  })
-  .filter(Boolean);
+const NAV_VEHICLE_MAKES = [
+  { make: "Suzuki", makeSlug: "suzuki", route: "/vehicles/suzuki", models: [
+    { model: "Alto", slug: "suzuki-alto", path: "/vehicles/suzuki-alto" },
+    { model: "Cultus", slug: "suzuki-cultus", path: "/vehicles/suzuki-cultus" },
+    { model: "Swift", slug: "suzuki-swift", path: "/vehicles/suzuki-swift" },
+  ] },
+  { make: "Toyota", makeSlug: "toyota", route: "/vehicles/toyota", models: [
+    { model: "Corolla", slug: "toyota-corolla", path: "/vehicles/toyota-corolla" },
+    { model: "Yaris", slug: "toyota-yaris", path: "/vehicles/toyota-yaris" },
+    { model: "Fortuner", slug: "toyota-fortuner", path: "/vehicles/toyota-fortuner" },
+  ] },
+  { make: "Honda", makeSlug: "honda", route: "/vehicles/honda", models: [
+    { model: "City", slug: "honda-city", path: "/vehicles/honda-city" },
+    { model: "Civic", slug: "honda-civic", path: "/vehicles/honda-civic" },
+    { model: "HR-V", slug: "honda-hr-v", path: "/vehicles/honda-hr-v" },
+  ] },
+  { make: "Kia", makeSlug: "kia", route: "/vehicles/kia", models: [
+    { model: "Sportage", slug: "kia-sportage", path: "/vehicles/kia-sportage" },
+    { model: "Picanto", slug: "kia-picanto", path: "/vehicles/kia-picanto" },
+    { model: "Stonic", slug: "kia-stonic", path: "/vehicles/kia-stonic" },
+  ] },
+  { make: "Hyundai", makeSlug: "hyundai", route: "/vehicles/hyundai", models: [
+    { model: "Tucson", slug: "hyundai-tucson", path: "/vehicles/hyundai-tucson" },
+    { model: "Elantra", slug: "hyundai-elantra", path: "/vehicles/hyundai-elantra" },
+    { model: "Santa Fe", slug: "hyundai-santa-fe", path: "/vehicles/hyundai-santa-fe" },
+  ] },
+  { make: "Changan", makeSlug: "changan", route: "/vehicles/changan", models: [
+    { model: "Alsvin", slug: "changan-alsvin", path: "/vehicles/changan-alsvin" },
+    { model: "Oshan X7", slug: "changan-oshan-x7", path: "/vehicles/changan-oshan-x7" },
+    { model: "Deepal S07", slug: "changan-deepal-s07", path: "/vehicles/changan-deepal-s07" },
+  ] },
+];
 
 function RouteEffects() {
   const { pathname, hash } = useLocation();
@@ -550,7 +578,7 @@ function Header({ count, openCart }) {
           <details className="nav-mega" onToggle={keepOneMegaMenuOpen}>
             <summary>More</summary>
             <div className="mega-panel compact-panel">
-              <section><small>HELP & COMPANY</small><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link><Link to="/privacy" onClick={closeNavigation}>Privacy</Link></section>
+              <section><small>TOOLS &amp; COMPANY</small><Link to="/tools" onClick={closeNavigation}>Free tyre tools</Link><Link to="/tools/tyre-size-calculator" onClick={closeNavigation}>Tyre size calculator</Link><Link to="/tools/tyre-date-code-checker" onClick={closeNavigation}>Date-code checker</Link><Link to="/about" onClick={closeNavigation}>About us</Link><Link to="/lahore-tyre-shop" onClick={closeNavigation}>Lahore shop</Link><Link to="/contact" onClick={closeNavigation}>Contact & location</Link><Link to="/faq" onClick={closeNavigation}>Questions & answers</Link><Link to="/privacy" onClick={closeNavigation}>Privacy</Link></section>
             </div>
           </details>
           <Link className="nav-quote" to="/quote" onClick={closeNavigation}>Get current rate</Link>
@@ -591,7 +619,7 @@ function Header({ count, openCart }) {
 function MobileNavigation({ count, openCart }) {
   const { pathname } = useLocation();
   const homeActive = pathname === "/";
-  const tyreActive = ["/tyre-sizes", "/tyres", "/shop", "/product", "/vehicles", "/brands", "/rims"]
+  const tyreActive = ["/tyre-sizes", "/tyres", "/shop", "/product", "/vehicles", "/brands", "/rims", "/tools"]
     .some((prefix) => pathname.startsWith(prefix));
   const blogActive = pathname.startsWith("/guides");
   const quoteActive = pathname.startsWith("/quote");
@@ -3442,6 +3470,9 @@ function Footer() {
             <Link to="/guides/topics/tyre-size-and-fitment">Size &amp; fitment guides</Link>
             <Link to="/guides/topics/buying-tyres-in-pakistan">Tyre buying guides</Link>
             <Link to="/guides/topics/tyre-care-and-road-safety">Tyre care guides</Link>
+            <Link to="/tools">Free tyre tools</Link>
+            <Link to="/tools/tyre-size-calculator">Tyre size calculator</Link>
+            <Link to="/tools/tyre-date-code-checker">Tyre date-code checker</Link>
             <Link to="/services">Wheel services</Link>
             <Link to="/about">About us</Link>
             <Link to="/lahore-tyre-shop">Lahore tyre shop</Link>
@@ -3586,6 +3617,9 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
   const RouteGuidesHub = routeComponents.GuidesHub || GuidesHub;
   const RouteGuideTopicPage = routeComponents.GuideTopicPage || GuideTopicPage;
   const RouteGuideArticle = routeComponents.GuideArticle || GuideArticle;
+  const RouteToolsHub = routeComponents.ToolsHub || ToolsHub;
+  const RouteTyreSizeCalculator = routeComponents.TyreSizeCalculator || TyreSizeCalculator;
+  const RouteTyreDateCodeChecker = routeComponents.TyreDateCodeChecker || TyreDateCodeChecker;
   const RouteCommercialLandingPage = routeComponents.CommercialLandingPage || CommercialLandingPage;
   const RouteBrandLandingPage = routeComponents.BrandLandingPage || BrandLandingPage;
   const RouteVehicleLandingPage = routeComponents.VehicleLandingPage || VehicleLandingPage;
@@ -3621,7 +3655,7 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
         <Route path="/brands" element={<RouteBrandsHub />} />
         <Route path="/brands/:slug" element={<RouteBrandLandingPage />} />
         <Route path="/vehicles" element={<RouteVehiclesHub />} />
-        {Object.keys(VEHICLE_MAKE_PAGES).map((makeSlug) => (
+        {VEHICLE_MAKE_SLUGS.map((makeSlug) => (
           <Route key={makeSlug} path={`/vehicles/${makeSlug}`} element={<RouteVehicleMakePage makeSlug={makeSlug} />} />
         ))}
         <Route path="/vehicles/:slug" element={<RouteVehicleLandingPage />} />
@@ -3630,6 +3664,9 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
         <Route path="/guides" element={<RouteGuidesHub />} />
         <Route path="/guides/topics/:slug" element={<RouteGuideTopicPage />} />
         <Route path="/guides/:slug" element={<RouteGuideArticle />} />
+        <Route path="/tools" element={<RouteToolsHub />} />
+        <Route path="/tools/tyre-size-calculator" element={<RouteTyreSizeCalculator />} />
+        <Route path="/tools/tyre-date-code-checker" element={<RouteTyreDateCodeChecker />} />
         <Route path="/about" element={<RouteAboutPage />} />
         <Route path="/contact" element={<RouteContactPage />} />
         <Route path="/services" element={<RouteServicesPage />} />
@@ -3692,11 +3729,11 @@ export function AppShell({ initialCart = [], routeComponents = {} }) {
     </>
   );
 }
-export default function App() {
+export default function App({ routeComponents = {} }) {
   return (
     <>
       <BrowserRouter>
-        <AppShell />
+        <AppShell routeComponents={routeComponents} />
       </BrowserRouter>
       <Analytics />
       <SpeedInsights />

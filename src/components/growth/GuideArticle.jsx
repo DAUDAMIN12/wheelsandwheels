@@ -177,6 +177,7 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
   const sections = list(guide.sections);
   const faq = list(guide.faqs || guide.faq);
   const related = list(guide.relatedLinks || guide.related);
+  const sources = list(guide.sources || guide.references);
   const updatedAt = guide.updatedAt || guide.dateModified;
   const topic = guide.topicSlug && typeof seoContent.getGuideTopic === "function"
     ? seoContent.getGuideTopic(guide.topicSlug)
@@ -279,6 +280,22 @@ export default function GuideArticle({ slug: slugProp, guide: guideProp }) {
             {sections.map((section, index) => (
               <ArticleSection key={section.id || section.heading || index} section={section} index={index} />
             ))}
+            {!!sources.length && (
+              <section className="guide-sources" aria-labelledby="guide-sources-title">
+                <h2 id="guide-sources-title">Primary references</h2>
+                <p>Use the latest instructions for the exact vehicle and tyre. These sources support the general guidance on this page.</p>
+                <ul>
+                  {sources.map((item) => (
+                    <li key={item.url || item.title}>
+                      <a href={item.url} target="_blank" rel="noreferrer">
+                        {item.title || item.label}
+                      </a>
+                      {item.publisher && <span>{item.publisher}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <aside className="guide-inline-cta" aria-labelledby="guide-inline-help-title">
               <h2 id="guide-inline-help-title">Want advice for your vehicle?</h2>
               <p>Send your vehicle model and the full size printed on your tyre sidewall.</p>
